@@ -13,6 +13,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/gimnasio")
 public class GimnasioController {
+    // TODO: Decoupled into multiple controllers to separate logic business.
     @Autowired
     private GimnasioService gimnasioService;
 
