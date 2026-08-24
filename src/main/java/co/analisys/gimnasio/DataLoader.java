@@ -8,23 +8,21 @@ import co.analisys.gimnasio.repository.ClaseRepository;
 import co.analisys.gimnasio.repository.EntrenadorRepository;
 import co.analisys.gimnasio.repository.EquipoRepository;
 import co.analisys.gimnasio.repository.MiembroRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Component
+@RequiredArgsConstructor
 public class DataLoader implements CommandLineRunner {
 
-    @Autowired
-    private MiembroRepository miembroRepository;
-    @Autowired
-    private ClaseRepository claseRepository;
-    @Autowired
-    private EntrenadorRepository entrenadorRepository;
-    @Autowired
-    private EquipoRepository equipoRepository;
+    private final MiembroRepository miembroRepository;
+    private final ClaseRepository claseRepository;
+    private final EntrenadorRepository entrenadorRepository;
+    private final EquipoRepository equipoRepository;
 
     @Override
     public void run(String... args) throws Exception {

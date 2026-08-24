@@ -8,21 +8,19 @@ import co.analisys.gimnasio.repository.ClaseRepository;
 import co.analisys.gimnasio.repository.EntrenadorRepository;
 import co.analisys.gimnasio.repository.EquipoRepository;
 import co.analisys.gimnasio.repository.MiembroRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class GimnasioService {
-    @Autowired
-    private MiembroRepository miembroRepository;
-    @Autowired
-    private ClaseRepository claseRepository;
-    @Autowired
-    private EntrenadorRepository entrenadorRepository;
-    @Autowired
-    private EquipoRepository equipoRepository;
+    private final MiembroRepository miembroRepository;
+    private final ClaseRepository claseRepository;
+    private final EntrenadorRepository entrenadorRepository;
+    private final EquipoRepository equipoRepository;
 
     public Miembro registrarMiembro(Miembro miembro) {
         return miembroRepository.save(miembro);
