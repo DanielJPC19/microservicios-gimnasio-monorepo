@@ -17,11 +17,6 @@ public class GimnasioController {
     // TODO: Decoupled into multiple controllers to separate logic business.
     private final GimnasioService gimnasioService;
 
-    @PostMapping("/miembros")
-    public Miembro registrarMiembro(@RequestBody Miembro miembro) {
-        return gimnasioService.registrarMiembro(miembro);
-    }
-
     @PostMapping("/entrenadores")
     public Entrenador agregarEntrenador(@RequestBody Entrenador entrenador) {
         return gimnasioService.agregarEntrenador(entrenador);
@@ -30,11 +25,6 @@ public class GimnasioController {
     @PostMapping("/equipos")
     public Equipo agregarEquipo(@RequestBody Equipo equipo) {
         return gimnasioService.agregarEquipo(equipo);
-    }
-
-    @GetMapping("/miembros")
-    public List<Miembro> obtenerTodosMiembros() {
-        return gimnasioService.obtenerTodosMiembros();
     }
 
     @GetMapping("/entrenadores")
