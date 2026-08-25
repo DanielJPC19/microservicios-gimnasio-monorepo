@@ -1,12 +1,6 @@
 package co.analisys.gimnasio.service;
 
-import co.analisys.gimnasio.model.Clase;
-import co.analisys.gimnasio.model.Entrenador;
-import co.analisys.gimnasio.model.Equipo;
 import co.analisys.gimnasio.model.Miembro;
-import co.analisys.gimnasio.repository.ClaseRepository;
-import co.analisys.gimnasio.repository.EntrenadorRepository;
-import co.analisys.gimnasio.repository.EquipoRepository;
 import co.analisys.gimnasio.repository.MiembroRepository;
 import lombok.RequiredArgsConstructor;
 
