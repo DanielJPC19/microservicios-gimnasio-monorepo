@@ -1,7 +1,7 @@
 package co.analisys.gimnasio.controller;
 
 import co.analisys.gimnasio.model.Entrenador;
-import co.analisys.gimnasio.service.GimnasioService;
+import co.analisys.gimnasio.service.EntrenadorService;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.web.bind.annotation.*;
@@ -12,16 +12,15 @@ import java.util.List;
 @RequestMapping("/api/gimnasio/entrenadores")
 @RequiredArgsConstructor
 public class EntrenadorController {
-    // TODO: Decoupled into multiple controllers to separate logic business.
-    private final GimnasioService gimnasioService;
+    private final EntrenadorService entrenadorService;
 
     @PostMapping("")
     public Entrenador agregarEntrenador(@RequestBody Entrenador entrenador) {
-        return gimnasioService.agregarEntrenador(entrenador);
+        return entrenadorService.agregarEntrenador(entrenador);
     }
 
     @GetMapping("")
     public List<Entrenador> obtenerTodosEntrenadores() {
-        return gimnasioService.obtenerTodosEntrenadores();
+        return entrenadorService.obtenerTodosEntrenadores();
     }
 }

@@ -16,41 +16,16 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-public class GimnasioService {
+public class MiembroService {
+
     private final MiembroRepository miembroRepository;
-    private final ClaseRepository claseRepository;
-    private final EntrenadorRepository entrenadorRepository;
-    private final EquipoRepository equipoRepository;
 
     public Miembro registrarMiembro(Miembro miembro) {
         return miembroRepository.save(miembro);
-    }
-
-    public Clase programarClase(Clase clase) {
-        return claseRepository.save(clase);
-    }
-
-    public Entrenador agregarEntrenador(Entrenador entrenador) {
-        return entrenadorRepository.save(entrenador);
-    }
-
-    public Equipo agregarEquipo(Equipo equipo) {
-        return equipoRepository.save(equipo);
     }
 
     public List<Miembro> obtenerTodosMiembros() {
         return miembroRepository.findAll();
     }
 
-    public List<Clase> obtenerTodasClases() {
-        return claseRepository.findAll();
-    }
-
-    public List<Entrenador> obtenerTodosEntrenadores() {
-        return entrenadorRepository.findAll();
-    }
-
-    public List<Equipo> obtenerTodosEquipos() {
-        return equipoRepository.findAll();
-    }
 }

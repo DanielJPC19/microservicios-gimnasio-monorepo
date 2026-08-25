@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import co.analisys.gimnasio.model.Equipo;
-import co.analisys.gimnasio.service.GimnasioService;
+import co.analisys.gimnasio.service.EquipoService;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -17,15 +17,15 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class EquipoController {
 
-    private final GimnasioService gimnasioService;
+    private final EquipoService equipoService;
 
     @PostMapping("")
     public Equipo agregarEquipo(@RequestBody Equipo equipo) {
-        return gimnasioService.agregarEquipo(equipo);
+        return equipoService.agregarEquipo(equipo);
     }
 
     @GetMapping("")
     public List<Equipo> obtenerTodosEquipos() {
-        return gimnasioService.obtenerTodosEquipos();
+        return equipoService.obtenerTodosEquipos();
     }
 }

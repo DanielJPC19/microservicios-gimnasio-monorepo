@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import co.analisys.gimnasio.model.Miembro;
-import co.analisys.gimnasio.service.GimnasioService;
+import co.analisys.gimnasio.service.MiembroService;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -17,15 +17,15 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class MiembroController {
 
-    private final GimnasioService gimnasioService;
+    private final MiembroService miembroService;
 
     @PostMapping("")
     public Miembro registrarMiembro(@RequestBody Miembro miembro) {
-        return gimnasioService.registrarMiembro(miembro);
+        return miembroService.registrarMiembro(miembro);
     }
 
     @GetMapping("")
     public List<Miembro> obtenerTodosMiembros() {
-        return gimnasioService.obtenerTodosMiembros();
+        return miembroService.obtenerTodosMiembros();
     }
 }
