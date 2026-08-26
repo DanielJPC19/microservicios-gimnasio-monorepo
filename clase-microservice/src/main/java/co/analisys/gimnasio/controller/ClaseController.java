@@ -3,6 +3,7 @@ package co.analisys.gimnasio.controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import co.analisys.gimnasio.dto.ClaseResponse;
 import co.analisys.gimnasio.model.Clase;
 import co.analisys.gimnasio.service.ClaseService;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +27,7 @@ public class ClaseController {
     }
 
     @GetMapping("")
-    public List<Clase> obtenerTodasClases() {
+    public List<ClaseResponse> obtenerTodasClases() {
         return claseService.obtenerTodasClases();
     }
 }

@@ -23,4 +23,9 @@ public class EntrenadorController {
     public List<Entrenador> obtenerTodosEntrenadores() {
         return entrenadorService.obtenerTodosEntrenadores();
     }
+
+    @GetMapping("/{id}")
+    public Entrenador obtenerEntrenadorPorId(@PathVariable Long id) {
+        return entrenadorService.obtenerEntrenadorPorId(id);
+    }
 }

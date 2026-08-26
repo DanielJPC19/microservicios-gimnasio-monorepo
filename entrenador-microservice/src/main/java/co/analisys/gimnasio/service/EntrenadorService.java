@@ -1,6 +1,7 @@
 package co.analisys.gimnasio.service;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 
@@ -19,5 +20,10 @@ public class EntrenadorService {
 
     public List<Entrenador> obtenerTodosEntrenadores() {
         return entrenadorRepository.findAll();
+    }
+
+    public Entrenador obtenerEntrenadorPorId(Long id) {
+        Optional<Entrenador> entrenador = entrenadorRepository.findById(id);
+        return entrenador.orElse(null);
     }
 }

@@ -15,6 +15,5 @@ public class Clase {
     private LocalDateTime horario;
     private int capacidadMaxima;
 
-    @ManyToOne
-    private Entrenador entrenador;
+    private Long entrenadorId;
 }
