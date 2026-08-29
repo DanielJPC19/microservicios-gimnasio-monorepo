@@ -17,8 +17,23 @@ services:
   clase-service:
     build: ./services/clase-microservice
     ports:
-      - "8080:8080"
+      - "8084:8084"
     environment:
       ENTRENADOR_SERVICE_URL: http://entrenador-service:8081
     depends_on:
       - entrenador-service
+
+  api-gateway:
+    build: ./services/api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      ENTRENADOR_SERVICE_URL: http://entrenador-service:8081
+      MIEMBRO_SERVICE_URL: http://miembro-service:8083
+      EQUIPO_SERVICE_URL: http://equipo-service:8082
+      CLASE_SERVICE_URL: http://clase-service:8084
+    depends_on:
+      - entrenador-service
+      - miembro-service
+      - equipo-service
+      - clase-service
