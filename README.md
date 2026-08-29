@@ -13,7 +13,8 @@ Refactorización de un monolito Spring Boot de gestión de gimnasio en 4 microse
 
 | Servicio | Puerto | Dominio |
 |---|---|---|
-| `clase-microservice` | 8080 | Programación de clases |
+| `api-gateway` | 8080 | Api Gateway |
+| `clase-microservice` | 8084 | Programación de clases |
 | `entrenador-microservice` | 8081 | Gestión de entrenadores |
 | `equipo-microservice` | 8082 | Inventario de equipos |
 | `miembro-microservice` | 8083 | Gestión de miembros |
@@ -26,6 +27,7 @@ Detalle completo (modelos, endpoints, decisiones y limitaciones conocidas): [`do
 
 ```
 services/
+  api-gateway/
   clase-microservice/
   entrenador-microservice/
   equipo-microservice/
@@ -49,13 +51,27 @@ cd services/entrenador-microservice && ./mvnw spring-boot:run   # arrancar prime
 cd services/clase-microservice && ./mvnw spring-boot:run        # depende de entrenador
 cd services/equipo-microservice && ./mvnw spring-boot:run
 cd services/miembro-microservice && ./mvnw spring-boot:run
+cd services/api-gateway && ./mvnw spring-boot:run               # depende de todos los microservicios
 ```
 
 ## Probar
+
+Para cada microservicio de manera independiente, se pueden realizar las siguientes request:
 
 ```bash
 curl http://localhost:8083/api/gimnasio/miembros
 curl http://localhost:8081/api/gimnasio/entrenadores
 curl http://localhost:8082/api/gimnasio/equipos
-curl http://localhost:8080/api/gimnasio/clases      # incluye datos del entrenador (llamada cross-service)
+curl http://localhost:8084/api/gimnasio/clases      # incluye datos del entrenador (llamada cross-service)
 ```
+
+Para hacer la petición hacia el api gateway, realizar las mismas peticiones pero en el puerto 8080:
+
+```bash
+curl http://localhost:8080/api/gimnasio/miembros
+curl http://localhost:8080/api/gimnasio/entrenadores
+curl http://localhost:8080/api/gimnasio/equipos
+curl http://localhost:8080/api/gimnasio/clases
+```
+
+También puede abrir en Postman la colección de las request para cada endpoint en el archivo `gimnasio.postman_collection.json`
