@@ -1,0 +1,170 @@
+{
+  "info": {
+    "_postman_id": "7e3420e5-a38b-4815-8a3e-2454bfcb8cd8",
+    "name": "gimnasio",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "43993555",
+    "_collection_link": "https://go.postman.co/collection/43993555-7e3420e5-a38b-4815-8a3e-2454bfcb8cd8?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "clases",
+      "item": [
+        {
+          "name": "clases",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_url}}/clases",
+              "host": [
+                "{{api_url}}"
+              ],
+              "path": [
+                "clases"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "entrenadores",
+      "item": [
+        {
+          "name": "entrenadores",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_url}}/entrenadores",
+              "host": [
+                "{{api_url}}"
+              ],
+              "path": [
+                "entrenadores"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "entrenadores by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_url}}/entrenadores/2",
+              "host": [
+                "{{api_url}}"
+              ],
+              "path": [
+                "entrenadores",
+                "2"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "miembros",
+      "item": [
+        {
+          "name": "miembros",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_url}}/miembros",
+              "host": [
+                "{{api_url}}"
+              ],
+              "path": [
+                "miembros"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "equipos",
+      "item": [
+        {
+          "name": "equipos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_url}}/equipos",
+              "host": [
+                "{{api_url}}"
+              ],
+              "path": [
+                "equipos"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "api",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{api_url}}",
+          "host": [
+            "{{api_url}}"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "api_url",
+      "value": ""
+    }
+  ]
+}
