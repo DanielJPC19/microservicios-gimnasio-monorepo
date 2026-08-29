@@ -193,28 +193,28 @@ GET    /api/gimnasio/miembros
 
 **1. Arrancar Entrenador Service primero** (dependerá hacia él):
 ```bash
-cd entrenador-microservice
+cd services/entrenador-microservice
 ./mvnw spring-boot:run
 # Esperará en http://localhost:8081
 ```
 
 **2. En otra terminal, arrancar Clase Service** (depende de Entrenador):
 ```bash
-cd clase-microservice
+cd services/clase-microservice
 ./mvnw spring-boot:run
 # Esperará en http://localhost:8080
 ```
 
 **3. En otra terminal, arrancar Equipo Service** (standalone):
 ```bash
-cd equipo-microservice
+cd services/equipo-microservice
 ./mvnw spring-boot:run
 # Esperará en http://localhost:8082
 ```
 
 **4. En otra terminal, arrancar Miembro Service** (standalone):
 ```bash
-cd miembro-microservice
+cd services/miembro-microservice
 ./mvnw spring-boot:run
 # Esperará en http://localhost:8083
 ```
