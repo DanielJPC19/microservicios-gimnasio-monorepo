@@ -1,0 +1,24 @@
+services:
+  miembro-service:
+    build: ./services/miembro-microservice
+    ports:
+      - "8083:8083"
+
+  entrenador-service:
+    build: ./services/entrenador-microservice
+    ports:
+      - "8081:8081"
+
+  equipo-service:
+    build: ./services/equipo-microservice
+    ports:
+      - "8082:8082"
+
+  clase-service:
+    build: ./services/clase-microservice
+    ports:
+      - "8080:8080"
+    environment:
+      ENTRENADOR_SERVICE_URL: http://entrenador-service:8081
+    depends_on:
+      - entrenador-service
