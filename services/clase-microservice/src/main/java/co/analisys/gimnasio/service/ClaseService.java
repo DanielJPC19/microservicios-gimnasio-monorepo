@@ -3,6 +3,7 @@ package co.analisys.gimnasio.service;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -18,6 +19,9 @@ public class ClaseService {
 
     private final ClaseRepository claseRepository;
     private final RestTemplate restTemplate;
+
+    @Value("${entrenador.service.url}")
+    private String entrenadorServiceUrl;
 
     public Clase programarClase(Clase clase) {
         return claseRepository.save(clase);
@@ -38,7 +42,7 @@ public class ClaseService {
         // Llamar a entrenador-microservice para obtener el entrenador completo
         try {
             EntrenadorDTO entrenador = restTemplate.getForObject(
-                "http://localhost:8081/api/gimnasio/entrenadores/" + clase.getEntrenadorId(),
+                entrenadorServiceUrl + "/api/gimnasio/entrenadores/" + clase.getEntrenadorId(),
                 EntrenadorDTO.class
             );
             response.setEntrenador(entrenador);

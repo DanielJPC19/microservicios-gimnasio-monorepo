@@ -9,10 +9,10 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>co.analisys</groupId>
-	<artifactId>gimnasio</artifactId>
+	<artifactId>miembro-microservice</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>gimnasio</name>
-	<description>Monolito Gimnasio</description>
+	<name>miembro-microservice</name>
+	<description>Microservicio de Miembros - Gimnasio</description>
 	<url/>
 	<licenses>
 		<license/>
