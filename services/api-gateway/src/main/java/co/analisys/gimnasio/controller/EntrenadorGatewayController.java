@@ -3,6 +3,7 @@ package co.analisys.gimnasio.controller;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestClient;
@@ -10,21 +11,22 @@ import org.springframework.web.client.RestClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @RestController
-@RequestMapping("/api/gimnasio/clases")
+@RequestMapping("/api/gimnasio/entrenadores")
 @RequiredArgsConstructor
-public class ClaseGatewayController {
+public class EntrenadorGatewayController {
 
-    @Value("${clase.service.url}")
-    private String claseServiceUrl;
+    @Value("${entrenador.service.url}")
+    private String entrenadorServiceUrl;
 
     private final RestClient restClient;
 
     @GetMapping("")
-    public ResponseEntity<String> obtenerTodasClases() {
+    public ResponseEntity<String> obtenerTodosEntrenadores() {
         String respuesta = restClient.get()
-                .uri(claseServiceUrl + "/api/gimnasio/clases")
+                .uri(entrenadorServiceUrl + "/api/gimnasio/entrenadores")
                 .retrieve()
                 .body(String.class);
 
@@ -32,10 +34,20 @@ public class ClaseGatewayController {
     }
 
     @PostMapping("")
-    public ResponseEntity<String> programarClase(@RequestBody String clase) {
+    public ResponseEntity<String> agregarEntrenador(@RequestBody String entrenador) {
         String respuesta = restClient.post()
-                .uri(claseServiceUrl + "/api/gimnasio/clases")
-                .body(clase)
+                .uri(entrenadorServiceUrl + "/api/gimnasio/entrenadores")
+                .body(entrenador)
+                .retrieve()
+                .body(String.class);
+
+        return ResponseEntity.ok(respuesta);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<String> obtenerEntrenadorPorId(@PathVariable Long id) {
+        String respuesta = restClient.get()
+                .uri(entrenadorServiceUrl + "/api/gimnasio/entrenadores/" + id)
                 .retrieve()
                 .body(String.class);
 

@@ -12,19 +12,19 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
 @RestController
-@RequestMapping("/api/gimnasio/clases")
+@RequestMapping("/api/gimnasio/equipos")
 @RequiredArgsConstructor
-public class ClaseGatewayController {
+public class EquipoGatewayController {
 
-    @Value("${clase.service.url}")
-    private String claseServiceUrl;
+    @Value("${equipo.service.url}")
+    private String equipoServiceUrl;
 
     private final RestClient restClient;
 
     @GetMapping("")
-    public ResponseEntity<String> obtenerTodasClases() {
+    public ResponseEntity<String> obtenerTodosEquipos() {
         String respuesta = restClient.get()
-                .uri(claseServiceUrl + "/api/gimnasio/clases")
+                .uri(equipoServiceUrl + "/api/gimnasio/equipos")
                 .retrieve()
                 .body(String.class);
 
@@ -32,10 +32,10 @@ public class ClaseGatewayController {
     }
 
     @PostMapping("")
-    public ResponseEntity<String> programarClase(@RequestBody String clase) {
+    public ResponseEntity<String> agregarEquipo(@RequestBody String equipo) {
         String respuesta = restClient.post()
-                .uri(claseServiceUrl + "/api/gimnasio/clases")
-                .body(clase)
+                .uri(equipoServiceUrl + "/api/gimnasio/equipos")
+                .body(equipo)
                 .retrieve()
                 .body(String.class);
 
