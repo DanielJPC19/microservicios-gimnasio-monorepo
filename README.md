@@ -6,18 +6,18 @@ Refactorización de un monolito Spring Boot de gestión de gimnasio en 4 microse
 
 1. Daniel Jose Plazas Cortes - A00400085
 2. Rony Farid Ordoñez García - A00397968
-3. Daniel Gonzales Rivera - A00
+3. Daniel Gonzales Rivera - A00399873
 4. Juan Pablo Parra Betancourt - A00
 
 ## Arquitectura
 
-| Servicio | Puerto | Dominio |
-|---|---|---|
-| `api-gateway` | 8080 | Api Gateway |
-| `clase-microservice` | 8084 | Programación de clases |
-| `entrenador-microservice` | 8081 | Gestión de entrenadores |
-| `equipo-microservice` | 8082 | Inventario de equipos |
-| `miembro-microservice` | 8083 | Gestión de miembros |
+| Servicio                  | Puerto | Dominio                 |
+| ------------------------- | ------ | ----------------------- |
+| `api-gateway`             | 8080   | Api Gateway             |
+| `clase-microservice`      | 8084   | Programación de clases  |
+| `entrenador-microservice` | 8081   | Gestión de entrenadores |
+| `equipo-microservice`     | 8082   | Inventario de equipos   |
+| `miembro-microservice`    | 8083   | Gestión de miembros     |
 
 Comunicación síncrona REST punto-a-punto: `clase-service` consulta a `entrenador-service` para enriquecer la respuesta de clases con los datos del entrenador asignado. El resto son standalone. Cada servicio persiste en su propia instancia H2 en memoria.
 
@@ -40,11 +40,13 @@ docker-compose.yml
 ## Cómo correr
 
 **Con Docker Compose (recomendado para demo):**
+
 ```bash
 docker-compose up --build
 ```
 
 **Sin Docker, cada servicio suelto:**
+
 ```bash
 ./mvnw compile              # compila los 4 desde la raíz (aggregator)
 cd services/entrenador-microservice && ./mvnw spring-boot:run   # arrancar primero
@@ -74,4 +76,9 @@ curl http://localhost:8080/api/gimnasio/equipos
 curl http://localhost:8080/api/gimnasio/clases
 ```
 
-También puede abrir en Postman la colección de las request para cada endpoint en el archivo `gimnasio.postman_collection.json`
+> [!note] Postman
+>
+> - También puede abrir en Postman la colección de las request para cada endpoint en el archivo `gimnasio.postman_collection.json`
+> - Se creo una variable para poner la url pero toca agregarla a la variable que se encuentra en la coleccion lo siguiente:
+>   <http://localhost:8080/api/gimnasio>
+
