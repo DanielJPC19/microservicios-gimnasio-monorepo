@@ -29,6 +29,35 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "clases POST",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Yoga\",\n  \"horario\": { \"horario\": \"2026-09-01T10:00:00\" },\n  \"capacidad\": { \"capacidad\": 20 },\n  \"entrenadorId\": 1\n}"
+            },
+            "url": {
+              "raw": "{{api_url}}/clases",
+              "host": [
+                "{{api_url}}"
+              ],
+              "path": [
+                "clases"
+              ]
+            }
+          },
+          "response": []
         }
       ]
     },
@@ -72,6 +101,35 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "entrenadores POST",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Carlos Ruiz\",\n  \"especialidad\": \"Cardio\"\n}"
+            },
+            "url": {
+              "raw": "{{api_url}}/entrenadores",
+              "host": [
+                "{{api_url}}"
+              ],
+              "path": [
+                "entrenadores"
+              ]
+            }
+          },
+          "response": []
         }
       ]
     },
@@ -94,6 +152,35 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "miembros POST",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Juan Perez\",\n  \"email\": { \"email\": \"juan@email.com\" },\n  \"fechaInscripcion\": { \"fechaInscripcion\": \"2026-08-31\" }\n}"
+            },
+            "url": {
+              "raw": "{{api_url}}/miembros",
+              "host": [
+                "{{api_url}}"
+              ],
+              "path": [
+                "miembros"
+              ]
+            }
+          },
+          "response": []
         }
       ]
     },
@@ -105,6 +192,35 @@
           "request": {
             "method": "GET",
             "header": [],
+            "url": {
+              "raw": "{{api_url}}/equipos",
+              "host": [
+                "{{api_url}}"
+              ],
+              "path": [
+                "equipos"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "equipos POST",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Cinta de correr\",\n  \"descripcion\": \"Equipo cardiovascular\",\n  \"cantidad\": 5\n}"
+            },
             "url": {
               "raw": "{{api_url}}/equipos",
               "host": [
