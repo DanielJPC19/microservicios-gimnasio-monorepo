@@ -1,6 +1,8 @@
 package co.analisys.gimnasio.controller;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -37,6 +39,7 @@ public class EntrenadorGatewayController {
     public ResponseEntity<String> agregarEntrenador(@RequestBody String entrenador) {
         String respuesta = restClient.post()
                 .uri(entrenadorServiceUrl + "/api/gimnasio/entrenadores")
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .body(entrenador)
                 .retrieve()
                 .body(String.class);

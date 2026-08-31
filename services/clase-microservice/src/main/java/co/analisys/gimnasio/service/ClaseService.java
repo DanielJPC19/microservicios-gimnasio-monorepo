@@ -36,8 +36,8 @@ public class ClaseService {
         ClaseResponse response = new ClaseResponse();
         response.setId(clase.getId());
         response.setNombre(clase.getNombre());
-        response.setHorario(clase.getHorario());
-        response.setCapacidadMaxima(clase.getCapacidadMaxima());
+        response.setHorario(clase.getHorario().getHorario());
+        response.setCapacidadMaxima(clase.getCapacidad().getCapacidad());
 
         // Llamar a entrenador-microservice para obtener el entrenador completo
         try {

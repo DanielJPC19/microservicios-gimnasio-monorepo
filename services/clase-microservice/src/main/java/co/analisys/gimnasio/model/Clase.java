@@ -3,8 +3,6 @@ package co.analisys.gimnasio.model;
 import jakarta.persistence.*;
 import lombok.Data;
 
-import java.time.LocalDateTime;
-
 @Data
 @Entity
 public class Clase {
@@ -12,8 +10,10 @@ public class Clase {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String nombre;
-    private LocalDateTime horario;
-    private int capacidadMaxima;
+    @Embedded
+    private Horario horario;
+    @Embedded
+    private Capacidad capacidad;
 
     private Long entrenadorId;
 }
