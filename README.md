@@ -13,13 +13,22 @@ Refactorización de un monolito Spring Boot de gestión de gimnasio en 4 microse
 
 | Servicio                  | Puerto | Dominio                 |
 | ------------------------- | ------ | ----------------------- |
-| `api-gateway`             | 8080   | Api Gateway             |
+| `api-gateway`             | 8080   | API Gateway             |
 | `clase-microservice`      | 8084   | Programación de clases  |
 | `entrenador-microservice` | 8081   | Gestión de entrenadores |
-| `equipo-microservice`     | 8082   | Inventario de equipos   |
+| `equipo-microservice`     | 8082   | Inventario y averías    |
 | `miembro-microservice`    | 8083   | Gestión de miembros     |
+| `notificacion-microservice`| 8085  | Consumidor de eventos / Notificaciones |
+| `RabbitMQ`                | 5672 / 15672 | Message Broker & Dashboard UI |
 
-Comunicación síncrona REST punto-a-punto: `clase-service` consulta a `entrenador-service` para enriquecer la respuesta de clases con los datos del entrenador asignado. El resto son standalone. Cada servicio persiste en su propia instancia H2 en memoria.
+### Comunicación entre Servicios
+- **Síncrona (REST)**: `clase-service` consulta a `entrenador-service` para enriquecer la respuesta de clases con los datos del instructor asignado. `api-gateway` rutea las peticiones externas.
+- **Asíncrona (RabbitMQ)**:
+  1. **Notificación de Inscripción (Direct Exchange)**: `miembro-microservice` emite `MiembroInscritoEvent` a `gimnasio.miembro.exchange` con routing key `miembro.inscrito`. `notificacion-microservice` procesa el evento y envía el correo de bienvenida.
+  2. **Difusión de Averías de Equipos (Fanout Exchange - Pub/Sub)**: Cuando se reporta una máquina averiada en `equipo-microservice`, se publica `EquipoAveriadoEvent` a `gimnasio.equipo.events`. RabbitMQ difunde el mensaje en simultáneo a 3 colas de `notificacion-microservice`:
+     - `equipo.averia.mantenimiento`: Genera ticket de reparación urgente para servicio técnico.
+     - `equipo.averia.entrenadores`: Alerta a los instructores de sala para reprogramar rutinas.
+     - `equipo.averia.app-socios`: Dispara notificación push a la app móvil de los socios.
 
 Detalle completo (modelos, endpoints, decisiones y limitaciones conocidas): [`doc/ARCHITECTURE.md`](doc/ARCHITECTURE.md). Diagrama de despliegue: [`doc/DeploymentDiagram.drawio`](doc/DeploymentDiagram.drawio).
 
@@ -32,9 +41,10 @@ services/
   entrenador-microservice/
   equipo-microservice/
   miembro-microservice/
+  notificacion-microservice/
 doc/
-pom.xml            # aggregator, compila los 4 módulos
-docker-compose.yml
+pom.xml            # aggregator, compila los módulos
+docker-compose.yml # orquesta los 6 microservicios + rabbitmq
 ```
 
 ## Cómo correr
@@ -44,41 +54,41 @@ docker-compose.yml
 ```bash
 docker-compose up --build
 ```
+> El panel web de administración de RabbitMQ queda disponible en: `http://localhost:15672` (usuario: `guest`, contraseña: `guest`).
 
 **Sin Docker, cada servicio suelto:**
 
+1. Levantar RabbitMQ localmente (o vía `docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3-management`).
+2. Compilar y arrancar:
 ```bash
-./mvnw compile              # compila los 4 desde la raíz (aggregator)
-cd services/entrenador-microservice && ./mvnw spring-boot:run   # arrancar primero
-cd services/clase-microservice && ./mvnw spring-boot:run        # depende de entrenador
+./mvnw compile              # compila todos los módulos desde la raíz
+cd services/entrenador-microservice && ./mvnw spring-boot:run
+cd services/clase-microservice && ./mvnw spring-boot:run
 cd services/equipo-microservice && ./mvnw spring-boot:run
 cd services/miembro-microservice && ./mvnw spring-boot:run
-cd services/api-gateway && ./mvnw spring-boot:run               # depende de todos los microservicios
+cd services/notificacion-microservice && ./mvnw spring-boot:run
+cd services/api-gateway && ./mvnw spring-boot:run
 ```
 
-## Probar
+## Probar Flujos Asincrónicos (RabbitMQ)
 
-Para cada microservicio de manera independiente, se pueden realizar las siguientes request:
-
+### 1. Inscripción de Miembro (Direct Exchange -> Notificación de bienvenida)
 ```bash
-curl http://localhost:8083/api/gimnasio/miembros
-curl http://localhost:8081/api/gimnasio/entrenadores
-curl http://localhost:8082/api/gimnasio/equipos
-curl http://localhost:8084/api/gimnasio/clases      # incluye datos del entrenador (llamada cross-service)
+curl -X POST http://localhost:8080/api/gimnasio/miembros \
+  -H "Content-Type: application/json" \
+  -d '{"nombre": "Carlos Mendoza", "email": {"email": "carlos@gmail.com"}, "fechaInscripcion": {"fechaInscripcion": "2026-09-14"}}'
 ```
+*Ver en la consola de `notificacion-service` el log con el envío del correo de bienvenida.*
 
-Para hacer la petición hacia el api gateway, realizar las mismas peticiones pero en el puerto 8080:
-
+### 2. Reporte de Avería de Equipo (Fanout Exchange Pub/Sub -> 3 colas en simultáneo)
 ```bash
-curl http://localhost:8080/api/gimnasio/miembros
-curl http://localhost:8080/api/gimnasio/entrenadores
-curl http://localhost:8080/api/gimnasio/equipos
-curl http://localhost:8080/api/gimnasio/clases
+curl -X POST http://localhost:8080/api/gimnasio/equipos/1/reportar-averia \
+  -H "Content-Type: application/json" \
+  -d '{"motivo": "Fallo en motor de tracción y banda rota", "gravedad": "ALTA"}'
 ```
+*Ver en la consola de `notificacion-service` los 3 logs procesados simultáneamente (Mantenimiento Técnico, Alerta Entrenadores y Push App Socios).*
 
 > [!note] Postman
->
-> - También puede abrir en Postman la colección de las request para cada endpoint en el archivo `gimnasio.postman_collection.json`
-> - Se creo una variable para poner la url pero toca agregarla a la variable que se encuentra en la coleccion lo siguiente:
->   <http://localhost:8080/api/gimnasio>
+> - También puede abrir en Postman la colección actualizada en `gimnasio.postman_collection.json`.
+> - Establezca la variable `api_url` en: `http://localhost:8080/api/gimnasio`.
 

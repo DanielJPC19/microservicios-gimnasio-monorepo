@@ -12,6 +12,9 @@ import co.analisys.gimnasio.model.Equipo;
 import co.analisys.gimnasio.service.EquipoService;
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.web.bind.annotation.PathVariable;
+import co.analisys.gimnasio.dto.ReporteAveriaRequest;
+
 @RestController
 @RequestMapping("/api/gimnasio/equipos")
 @RequiredArgsConstructor
@@ -27,5 +30,10 @@ public class EquipoController {
     @GetMapping("")
     public List<Equipo> obtenerTodosEquipos() {
         return equipoService.obtenerTodosEquipos();
+    }
+
+    @PostMapping("/{id}/reportar-averia")
+    public Equipo reportarAveria(@PathVariable Long id, @RequestBody ReporteAveriaRequest reporte) {
+        return equipoService.reportarAveria(id, reporte);
     }
 }

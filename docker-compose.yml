@@ -1,8 +1,22 @@
 services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: gimnasio-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
   miembro-service:
     build: ./services/miembro-microservice
     ports:
       - "8083:8083"
+    environment:
+      SPRING_RABBITMQ_HOST: rabbitmq
+    depends_on:
+      - rabbitmq
 
   entrenador-service:
     build: ./services/entrenador-microservice
@@ -13,6 +27,10 @@ services:
     build: ./services/equipo-microservice
     ports:
       - "8082:8082"
+    environment:
+      SPRING_RABBITMQ_HOST: rabbitmq
+    depends_on:
+      - rabbitmq
 
   clase-service:
     build: ./services/clase-microservice
@@ -23,6 +41,15 @@ services:
     depends_on:
       - entrenador-service
 
+  notificacion-service:
+    build: ./services/notificacion-microservice
+    ports:
+      - "8085:8085"
+    environment:
+      SPRING_RABBITMQ_HOST: rabbitmq
+    depends_on:
+      - rabbitmq
+
   api-gateway:
     build: ./services/api-gateway
     ports:
@@ -32,8 +59,10 @@ services:
       MIEMBRO_SERVICE_URL: http://miembro-service:8083
       EQUIPO_SERVICE_URL: http://equipo-service:8082
       CLASE_SERVICE_URL: http://clase-service:8084
+      NOTIFICACION_SERVICE_URL: http://notificacion-service:8085
     depends_on:
       - entrenador-service
       - miembro-service
       - equipo-service
       - clase-service
+      - notificacion-service

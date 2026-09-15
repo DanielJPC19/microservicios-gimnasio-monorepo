@@ -15,71 +15,93 @@ Refactorización de un monolito Spring Boot ("Gimnasio") en 4 microservicios ind
 
 ## Servicios
 
-| Servicio | Puerto | Dominio | Responsabilidad | Entidad principal |
+| Servicio | Puerto | Dominio | Responsabilidad | Entidad / Evento principal |
 |---|---|---|---|---|
-| **clase-microservice** | 8080 | Programación | Crear y listar clases/sesiones de entrenamiento | `Clase` |
+| **api-gateway** | 8080 | Gateway | Enrutamiento perimetral unificado hacia los microservicios | - |
+| **clase-microservice** | 8084 | Programación | Crear y listar clases/sesiones de entrenamiento | `Clase` |
 | **entrenador-microservice** | 8081 | Recursos Humanos | Gestionar entrenadores/instructores | `Entrenador` |
-| **equipo-microservice** | 8082 | Equipamiento | Inventario y control de máquinas/equipos | `Equipo` |
-| **miembro-microservice** | 8083 | Membresía | Registrar y gestionar miembros/clientes | `Miembro` |
+| **equipo-microservice** | 8082 | Equipamiento | Inventario, control y reporte de averías | `Equipo`, `EquipoAveriadoEvent` |
+| **miembro-microservice** | 8083 | Membresía | Registrar miembros y emitir eventos de inscripción | `Miembro`, `MiembroInscritoEvent` |
+| **notificacion-microservice**| 8085 | Notificaciones | Consumir eventos asincrónicos (bienvenida, tickets, app push) | Listeners RabbitMQ |
+| **RabbitMQ** | 5672 / 15672 | Broker | Enrutamiento de colas y exchanges AMQP | Direct & Fanout Exchanges |
 
 ---
 
-## Diagrama de Componentes
+## Diagrama de Componentes y Mensajería Asincrónica
 
 ```mermaid
 graph TB
-    subgraph "Microservicios"
-        CLASE["Clase Service<br/>Puerto 8080"]
-        ENTRENADOR["Entrenador Service<br/>Puerto 8081"]
-        EQUIPO["Equipo Service<br/>Puerto 8082"]
-        MIEMBRO[Miembro Service<br/>Puerto 8083"]
+    subgraph "Clientes Externos"
+        CLIENT["Cliente / Postman / Frontend"]
     end
-    
-    subgraph "Persistencia"
-        H2_CLASE["H2: gimnasiodb<br/>(Clases)"]
-        H2_ENTRENADOR["H2: gimnasiodb<br/>(Entrenadores)"]
-        H2_EQUIPO["H2: gimnasiodb<br/>(Equipos)"]
-        H2_MIEMBRO["H2: gimnasiodb<br/>(Miembros)"]
+
+    subgraph "API Gateway"
+        GATEWAY["API Gateway (8080)"]
     end
-    
+
+    subgraph "Microservicios de Negocio"
+        CLASE["Clase Service (8084)"]
+        ENTRENADOR["Entrenador Service (8081)"]
+        EQUIPO["Equipo Service (8082)"]
+        MIEMBRO["Miembro Service (8083)"]
+    end
+
+    subgraph "RabbitMQ Broker (5672 / 15672)"
+        EX_DIRECT["Direct Exchange:<br/>gimnasio.miembro.exchange"]
+        Q_MIEMBRO["Cola: miembro.inscripcion.notificacion"]
+
+        EX_FANOUT["Fanout Exchange:<br/>gimnasio.equipo.events"]
+        Q_MANT["Cola: equipo.averia.mantenimiento"]
+        Q_ENTR["Cola: equipo.averia.entrenadores"]
+        Q_APP["Cola: equipo.averia.app-socios"]
+    end
+
+    subgraph "Microservicio Consumidor"
+        NOTIF["Notificacion Service (8085)"]
+    end
+
+    CLIENT --> GATEWAY
+    GATEWAY --> CLASE
+    GATEWAY --> ENTRENADOR
+    GATEWAY --> EQUIPO
+    GATEWAY --> MIEMBRO
+
     CLASE -->|REST GET /entrenadores/{id}| ENTRENADOR
-    CLASE --> H2_CLASE
-    ENTRENADOR --> H2_ENTRENADOR
-    EQUIPO --> H2_EQUIPO
-    MIEMBRO --> H2_MIEMBRO
-    
-    style CLASE fill:#e1f5ff
-    style ENTRENADOR fill:#e1f5ff
-    style EQUIPO fill:#e1f5ff
-    style MIEMBRO fill:#e1f5ff
-    style H2_CLASE fill:#f3e5f5
-    style H2_ENTRENADOR fill:#f3e5f5
-    style H2_EQUIPO fill:#f3e5f5
-    style H2_MIEMBRO fill:#f3e5f5
+
+    %% Flujos Asincrónicos
+    MIEMBRO -->|Publica MiembroInscritoEvent| EX_DIRECT
+    EX_DIRECT -->|routingKey: miembro.inscrito| Q_MIEMBRO
+    Q_MIEMBRO --> NOTIF
+
+    EQUIPO -->|Publica EquipoAveriadoEvent| EX_FANOUT
+    EX_FANOUT --> Q_MANT
+    EX_FANOUT --> Q_ENTR
+    EX_FANOUT --> Q_APP
+    Q_MANT --> NOTIF
+    Q_ENTR --> NOTIF
+    Q_APP --> NOTIF
 ```
 
 ---
 
 ## Comunicación entre Servicios
 
-### Modelo de Comunicación
-- **Tipo**: REST síncrono (HTTP/JSON)
-- **Patrón**: Cliente-servidor punto-a-punto
-- **Ausencias notables**: Sin API Gateway, sin Service Discovery (Eureka), sin Message Broker (Kafka/RabbitMQ)
+### 1. Comunicación Síncrona (REST)
+- `clase-microservice` → `entrenador-microservice`: Enriquecimiento de clases consultando datos del instructor.
+- `api-gateway` → Todos los microservicios: Enrutamiento perimetral con `RestClient`.
 
-### Llamada Inter-servicio
-
-**Única integración actual:**
-- **Origen**: `clase-microservice` → **Destino**: `entrenador-microservice`
-- **Disparador**: Listar clases (`GET /api/gimnasio/clases`)
-- **Acción**: Enriquecer cada clase con datos del entrenador asignado
-- **Implementación**: `ClaseService.java` usa `RestTemplate` para llamar a `GET http://localhost:8081/api/gimnasio/entrenadores/{entrenadorId}`
-- **Respuesta**: Se embebe `EntrenadorDTO` en `ClaseResponse`
-- **Manejo de fallos**: Log y fallback (enriquecimiento best-effort, no propaga excepción)
-
-### Servicios Standalone
-- **equipo-microservice**: Sin dependencias salientes; gestión pura de equipos
-- **miembro-microservice**: Sin dependencias salientes; gestión pura de miembros
+### 2. Comunicación Asíncrona con RabbitMQ (Parte 2)
+- **Direct Exchange (Notificación de Inscripción)**:
+  - **Exchange**: `gimnasio.miembro.exchange`
+  - **Routing Key**: `miembro.inscrito`
+  - **Cola**: `miembro.inscripcion.notificacion`
+  - **Comportamiento**: Al registrar un miembro en `miembro-microservice`, se emite `MiembroInscritoEvent`. `notificacion-microservice` lo consume de forma desacoplada y simula el correo de bienvenida.
+- **Fanout Exchange (Patrón Pub/Sub - Avería de Equipos)**:
+  - **Exchange**: `gimnasio.equipo.events`
+  - **Comportamiento**: Cuando un equipo sufre una falla o requiere mantenimiento urgente (`POST /api/gimnasio/equipos/{id}/reportar-averia`), `equipo-microservice` publica `EquipoAveriadoEvent`. RabbitMQ difunde el evento a 3 colas suscritas en simultáneo:
+    1. `equipo.averia.mantenimiento`: Crea ticket urgente para la cuadrilla técnica y proveedor de repuestos.
+    2. `equipo.averia.entrenadores`: Alerta a los instructores de sala para reprogramar rutinas.
+    3. `equipo.averia.app-socios`: Dispara notificación a la app móvil de clientes sobre máquina fuera de servicio.
 
 ---
 

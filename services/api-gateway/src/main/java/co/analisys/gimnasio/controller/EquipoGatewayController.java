@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestClient;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
@@ -45,4 +46,15 @@ public class EquipoGatewayController {
         return ResponseEntity.ok(respuesta);
     }
 
+    @PostMapping("/{id}/reportar-averia")
+    public ResponseEntity<String> reportarAveria(@PathVariable Long id, @RequestBody String reporte) {
+        String respuesta = restClient.post()
+                .uri(equipoServiceUrl + "/api/gimnasio/equipos/" + id + "/reportar-averia")
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .body(reporte)
+                .retrieve()
+                .body(String.class);
+
+        return ResponseEntity.ok(respuesta);
+    }
 }

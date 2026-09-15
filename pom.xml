@@ -15,5 +15,7 @@
 		<module>services/entrenador-microservice</module>
 		<module>services/clase-microservice</module>
 		<module>services/equipo-microservice</module>
+		<module>services/notificacion-microservice</module>
+		<module>services/api-gateway</module>
 	</modules>
 </project>

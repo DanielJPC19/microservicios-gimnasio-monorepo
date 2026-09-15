@@ -232,6 +232,37 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "equipos reportar averia (Pub/Sub Fanout)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"Fallo en motor de tracción y banda desgastada\",\n  \"gravedad\": \"ALTA\"\n}"
+            },
+            "url": {
+              "raw": "{{api_url}}/equipos/1/reportar-averia",
+              "host": [
+                "{{api_url}}"
+              ],
+              "path": [
+                "equipos",
+                "1",
+                "reportar-averia"
+              ]
+            }
+          },
+          "response": []
         }
       ]
     },
