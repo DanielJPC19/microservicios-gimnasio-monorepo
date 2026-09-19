@@ -2,13 +2,15 @@
 
 ## Resumen
 
-Refactorización de un monolito Spring Boot ("Gimnasio") en 4 microservicios independientes bajo principios de **Domain-Driven Design (DDD)**. Cada servicio gestiona su propio dominio de negocio, con comunicación síncrona REST punto-a-punto (sin API Gateway, service discovery, ni message broker). Persistencia mediante H2 en memoria, aislada por servicio.
+Refactorización de un monolito Spring Boot ("Gimnasio") en microservicios independientes bajo principios de **Domain-Driven Design (DDD)**: 5 servicios de negocio (clase, entrenador, equipo, miembro, pago), un servicio consumidor de eventos (notificacion) y un API Gateway como punto de entrada único. La comunicación es síncrona vía REST (gateway → servicios, clase → entrenador) y asíncrona vía RabbitMQ (eventos de inscripción, averías y procesamiento de pagos con Dead Letter Queue). Persistencia mediante H2 en memoria, aislada por servicio.
 
 **Stack tecnológico:**
-- **Runtime**: Java 21 (Spring Boot 3.3.2)
+- **Runtime**: Java 17 (Spring Boot 3.3.2)
 - **Build**: Maven (mvnw)
 - **Persistencia**: H2 (JDBC, JPA)
 - **API**: REST (Spring Web)
+- **Mensajería**: RabbitMQ 3 (Spring AMQP, serialización JSON con Jackson)
+- **Orquestación**: Docker Compose
 - **Dependencias comunes**: Lombok, Spring Data JPA
 
 ---
@@ -23,7 +25,8 @@ Refactorización de un monolito Spring Boot ("Gimnasio") en 4 microservicios ind
 | **equipo-microservice** | 8082 | Equipamiento | Inventario, control y reporte de averías | `Equipo`, `EquipoAveriadoEvent` |
 | **miembro-microservice** | 8083 | Membresía | Registrar miembros y emitir eventos de inscripción | `Miembro`, `MiembroInscritoEvent` |
 | **notificacion-microservice**| 8085 | Notificaciones | Consumir eventos asincrónicos (bienvenida, tickets, app push) | Listeners RabbitMQ |
-| **RabbitMQ** | 5672 / 15672 | Broker | Enrutamiento de colas y exchanges AMQP | Direct & Fanout Exchanges |
+| **pago-microservice** | 8086 | Facturación | Recibir pagos, procesarlos de forma asíncrona y gestionar los fallidos vía DLQ | `Pago`, `PagoSolicitadoEvent` |
+| **RabbitMQ** | 5672 / 15672 | Broker | Enrutamiento de colas y exchanges AMQP | Direct & Fanout Exchanges, Dead Letter Exchange |
 
 ---
 
@@ -44,6 +47,7 @@ graph TB
         ENTRENADOR["Entrenador Service (8081)"]
         EQUIPO["Equipo Service (8082)"]
         MIEMBRO["Miembro Service (8083)"]
+        PAGO["Pago Service (8086)"]
     end
 
     subgraph "RabbitMQ Broker (5672 / 15672)"
@@ -54,6 +58,11 @@ graph TB
         Q_MANT["Cola: equipo.averia.mantenimiento"]
         Q_ENTR["Cola: equipo.averia.entrenadores"]
         Q_APP["Cola: equipo.averia.app-socios"]
+
+        EX_PAGOS["Direct Exchange:<br/>gimnasio.pagos.exchange"]
+        Q_PAGOS["Cola: pagos.procesamiento<br/>(x-dead-letter-exchange)"]
+        EX_DLX["Dead Letter Exchange:<br/>gimnasio.pagos.dlx"]
+        Q_DLQ["DLQ: pagos.procesamiento.dlq"]
     end
 
     subgraph "Microservicio Consumidor"
@@ -65,6 +74,7 @@ graph TB
     GATEWAY --> ENTRENADOR
     GATEWAY --> EQUIPO
     GATEWAY --> MIEMBRO
+    GATEWAY --> PAGO
 
     CLASE -->|REST GET /entrenadores/{id}| ENTRENADOR
 
@@ -80,6 +90,13 @@ graph TB
     Q_MANT --> NOTIF
     Q_ENTR --> NOTIF
     Q_APP --> NOTIF
+
+    PAGO -->|Publica PagoSolicitadoEvent| EX_PAGOS
+    EX_PAGOS -->|routingKey: pago.procesar| Q_PAGOS
+    Q_PAGOS -->|Consume con reintentos| PAGO
+    Q_PAGOS -.->|Rechazo sin reencolar| EX_DLX
+    EX_DLX -->|routingKey: pago.fallido| Q_DLQ
+    Q_DLQ -->|Marca FALLIDO| PAGO
 ```
 
 ---
@@ -103,6 +120,21 @@ graph TB
     2. `equipo.averia.entrenadores`: Alerta a los instructores de sala para reprogramar rutinas.
     3. `equipo.averia.app-socios`: Dispara notificación a la app móvil de clientes sobre máquina fuera de servicio.
 
+- **Dead Letter Queue (Procesamiento de Pagos)**:
+  - **Exchange / Cola principal**: `gimnasio.pagos.exchange` → `pagos.procesamiento` (routing key `pago.procesar`), declarada con `x-dead-letter-exchange=gimnasio.pagos.dlx` y `x-dead-letter-routing-key=pago.fallido`.
+  - **DLX / DLQ**: `gimnasio.pagos.dlx` → `pagos.procesamiento.dlq`.
+  - **Comportamiento**: `POST /api/gimnasio/pagos` guarda el pago como `PENDIENTE`, publica `PagoSolicitadoEvent` y responde `202 Accepted`. El consumidor cobra contra una pasarela simulada:
+    1. Éxito → `APROBADO`.
+    2. `PagoRechazadoException` (pasarela rechaza, simulado con `metodoPago = TARJETA_RECHAZADA`) → reintento con backoff exponencial (1s, 2s) hasta 3 intentos.
+    3. `PagoInvalidoException` (monto ≤ 0 o sin miembro) → error permanente, sin reintentos.
+    4. Agotados los intentos, `RejectAndDontRequeueRecoverer` rechaza el mensaje sin reencolar y RabbitMQ lo desvía al DLX. El consumidor de la DLQ lee la cabecera `x-death` (cola de origen y razón) y marca el pago como `FALLIDO`, consultable en `GET /api/gimnasio/pagos/fallidos`.
+  - **Configuración**: `pago.procesamiento.max-intentos`, `pago.procesamiento.intervalo-inicial-ms`, `pago.procesamiento.multiplicador` y `pago.dlq.consumidor-activo` (en `false` deja los mensajes en la DLQ para inspeccionarlos en el panel de RabbitMQ).
+  - **Nota**: productor y consumidor viven en el mismo servicio porque el procesamiento asíncrono es parte del contexto de Facturación; la cola desacopla la recepción del pago de la llamada a la pasarela.
+
+### 3. Garantías de entrega
+- **Declaración en productor y consumidor**: exchanges, colas y bindings se declaran tanto en el servicio que publica (`miembro`, `equipo`) como en `notificacion-microservice` (`pago-microservice` es productor y consumidor, declara todo en un solo lugar). La declaración es idempotente, así que si el consumidor no ha arrancado los eventos quedan encolados en vez de descartarse por falta de binding.
+- **Arranque ordenado**: en `docker-compose.yml` RabbitMQ tiene `healthcheck` (`rabbitmq-diagnostics ping`) y los servicios que lo usan esperan con `condition: service_healthy`.
+
 ---
 
 ## Persistencia
@@ -116,6 +148,7 @@ Cada microservicio utiliza su propia **instancia H2 en memoria**:
 | `entrenador-microservice` | `jdbc:h2:mem:gimnasiodb` | `ENTRENADOR` (auto-creado) | Ephemeral, resiembra en boot |
 | `equipo-microservice` | `jdbc:h2:mem:gimnasiodb` | `EQUIPO` (auto-creado) | Ephemeral, resiembra en boot |
 | `miembro-microservice` | `jdbc:h2:mem:gimnasiodb` | `MIEMBRO` (auto-creado) | Ephemeral, resiembra en boot |
+| `pago-microservice` | `jdbc:h2:mem:gimnasiodb` | `PAGO` (auto-creado) | Ephemeral, sin datos semilla |
 
 **Notas importantes:**
 - Aunque todas usan el mismo nombre de BD (`gimnasiodb`), son **instancias separadas e independientes** — cada JVM de Spring Boot levanta su propio H2 en memoria, sin compartir datos reales
@@ -151,6 +184,17 @@ Miembro
 ├── email
 ├── membresiaActiva
 └── fechaRegistro
+
+Pago
+├── id (PK)
+├── miembroId (referencia lógica)
+├── monto
+├── metodoPago
+├── estado (PENDIENTE | APROBADO | FALLIDO)
+├── intentos
+├── motivoFallo
+├── fechaSolicitud
+└── fechaProcesamiento
 ```
 
 ---
@@ -201,6 +245,19 @@ POST   /api/gimnasio/miembros
 
 GET    /api/gimnasio/miembros
        Response: [ { "id": 1, "nombre": "Carlos López", ... }, ... ]
+```
+
+### Pago Service (8086)
+```
+POST   /api/gimnasio/pagos
+       Request: { "miembroId": 1, "monto": 120000, "metodoPago": "TARJETA" }
+       Response (202): { "id": 1, "estado": "PENDIENTE", "intentos": 0, ... }
+
+GET    /api/gimnasio/pagos
+       Response: [ { "id": 1, "estado": "APROBADO", "intentos": 1, "motivoFallo": null, ... }, ... ]
+
+GET    /api/gimnasio/pagos/fallidos
+       Response: [ { "id": 2, "estado": "FALLIDO", "intentos": 3, "motivoFallo": "La pasarela rechazó ...", ... } ]
 ```
 
 ---
@@ -259,11 +316,9 @@ curl http://localhost:8080/api/gimnasio/clases
 
 | Limitación | Impacto | Mitigation |
 |---|---|---|
-| **URL hardcoded en `ClaseService`** | Si `entrenador-microservice` cambia puerto o máquina, la integración se rompe | Mover a `application.properties` o usar Spring Cloud Config |
-| **Sin Docker/docker-compose** | Arranque manual en 4 terminales; difícil de reproducir | Crear `Dockerfile` + `docker-compose.yml` |
-| **Sin Service Discovery** | IPs/puertos hardcoded; no escalable | Integrar Eureka o Service Registry |
-| **Sin API Gateway** | Clientes llaman directamente a cada servicio; sin punto de entrada único | Añadir Spring Cloud Gateway o Kong |
-| **Sin Message Broker** | Integración síncrona = bloqueo en fallos de red | Considerar Kafka/RabbitMQ para async |
+| **Sin Service Discovery** | URLs de servicios fijadas por variables de entorno; no escalable horizontalmente | Integrar Eureka o Service Registry |
+| **Gateway manual** | Cada ruta nueva requiere un controlador con `RestClient` en `api-gateway` | Migrar a Spring Cloud Gateway |
+| **DTOs de eventos duplicados** | `MiembroInscritoEvent` y `EquipoAveriadoEvent` se copian en productor y consumidor; deben mantenerse en el mismo paquete porque el `__TypeId__` usa el nombre completo de la clase | Módulo compartido de contratos o mapeo de tipos explícito |
 | **H2 en memoria** | Datos se pierden en restart; no persistencia | Migrar a PostgreSQL/MySQL + volúmenes persistentes |
 | **Sin tests unitarios/integración** | Solo smoke test de contexto Spring | Escribir unit tests (Mockito) e IT con testcontainers |
 | **Diagrama .drawio vacío** | Entregable pendiente | Este archivo `.md` complementa/reemplaza ese diagrama |
@@ -273,8 +328,8 @@ curl http://localhost:8080/api/gimnasio/clases
 
 ## Referencias
 
-- **Proyecto académico**: `md/project.md` (assignment brief en español)
-- **Código base**: Cada microservicio en su directorio: `{clase,entrenador,equipo,miembro}-microservice/`
+- **Proyecto académico**: `doc/project.md` (assignment brief en español)
+- **Código base**: Cada servicio en su directorio: `services/{clase,entrenador,equipo,miembro,notificacion,pago}-microservice/` y `services/api-gateway/`
 - **Spring Boot Docs**: https://spring.io/projects/spring-boot
 - **Spring Cloud**: https://spring.io/projects/spring-cloud
 - **Domain-Driven Design**: Evans, E. "Domain-Driven Design: Tackling Complexity in the Heart of Software"
