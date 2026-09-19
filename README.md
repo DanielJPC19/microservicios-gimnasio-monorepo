@@ -1,6 +1,6 @@
 # Gimnasio - Arquitectura de Microservicios
 
-Refactorización de un monolito Spring Boot de gestión de gimnasio en 4 microservicios independientes aplicando Domain-Driven Design (DDD). Taller académico — ver [`doc/project.md`](doc/project.md) para el enunciado completo.
+Refactorización de un monolito Spring Boot de gestión de gimnasio en microservicios independientes aplicando Domain-Driven Design (DDD). Taller académico — ver [`doc/project.md`](doc/project.md) para el enunciado completo.
 
 ## Equipo
 
@@ -19,6 +19,7 @@ Refactorización de un monolito Spring Boot de gestión de gimnasio en 4 microse
 | `equipo-microservice`     | 8082   | Inventario y averías    |
 | `miembro-microservice`    | 8083   | Gestión de miembros     |
 | `notificacion-microservice`| 8085  | Consumidor de eventos / Notificaciones |
+| `pago-microservice`       | 8086   | Procesamiento de pagos (con Dead Letter Queue) |
 | `RabbitMQ`                | 5672 / 15672 | Message Broker & Dashboard UI |
 
 ### Comunicación entre Servicios
@@ -29,8 +30,12 @@ Refactorización de un monolito Spring Boot de gestión de gimnasio en 4 microse
      - `equipo.averia.mantenimiento`: Genera ticket de reparación urgente para servicio técnico.
      - `equipo.averia.entrenadores`: Alerta a los instructores de sala para reprogramar rutinas.
      - `equipo.averia.app-socios`: Dispara notificación push a la app móvil de los socios.
+  3. **Pagos con Dead Letter Queue**: `pago-microservice` recibe el pago (`202 Accepted`, estado `PENDIENTE`) y publica `PagoSolicitadoEvent` a `gimnasio.pagos.exchange` (routing key `pago.procesar`). El consumidor lo procesa contra una pasarela simulada:
+     - Error de pasarela (`PagoRechazadoException`): hasta 3 intentos con backoff exponencial (1s, 2s).
+     - Datos inválidos (`PagoInvalidoException`): no se reintenta.
+     - Si falla definitivamente, el mensaje se rechaza sin reencolar y RabbitMQ lo desvía (`x-dead-letter-exchange`) a `gimnasio.pagos.dlx` → `pagos.procesamiento.dlq`, cuyo consumidor marca el pago como `FALLIDO`.
 
-Detalle completo (modelos, endpoints, decisiones y limitaciones conocidas): [`doc/ARCHITECTURE.md`](doc/ARCHITECTURE.md). Diagrama de despliegue: [`doc/DeploymentDiagram.drawio`](doc/DeploymentDiagram.drawio).
+Detalle completo (modelos, endpoints, decisiones y limitaciones conocidas): [`doc/ARCHITECTURE.md`](doc/ARCHITECTURE.md). Diagrama de despliegue: [`doc/DeploymentDiagram.pdf`](doc/DeploymentDiagram.pdf).
 
 ## Estructura del repo
 
@@ -42,9 +47,10 @@ services/
   equipo-microservice/
   miembro-microservice/
   notificacion-microservice/
+  pago-microservice/
 doc/
 pom.xml            # aggregator, compila los módulos
-docker-compose.yml # orquesta los 6 microservicios + rabbitmq
+docker-compose.yml # orquesta los 7 servicios + rabbitmq
 ```
 
 ## Cómo correr
@@ -67,6 +73,7 @@ cd services/clase-microservice && ./mvnw spring-boot:run
 cd services/equipo-microservice && ./mvnw spring-boot:run
 cd services/miembro-microservice && ./mvnw spring-boot:run
 cd services/notificacion-microservice && ./mvnw spring-boot:run
+cd services/pago-microservice && ./mvnw spring-boot:run
 cd services/api-gateway && ./mvnw spring-boot:run
 ```
 
@@ -87,6 +94,35 @@ curl -X POST http://localhost:8080/api/gimnasio/equipos/1/reportar-averia \
   -d '{"motivo": "Fallo en motor de tracción y banda rota", "gravedad": "ALTA"}'
 ```
 *Ver en la consola de `notificacion-service` los 3 logs procesados simultáneamente (Mantenimiento Técnico, Alerta Entrenadores y Push App Socios).*
+
+### 3. Pagos y Dead Letter Queue
+```bash
+# Aprobado: 1 intento
+curl -X POST http://localhost:8080/api/gimnasio/pagos \
+  -H "Content-Type: application/json" \
+  -d '{"miembroId": 1, "monto": 120000, "metodoPago": "TARJETA"}'
+
+# Rechazado por la pasarela: 3 intentos (1s, 2s) y luego a la DLQ
+curl -X POST http://localhost:8080/api/gimnasio/pagos \
+  -H "Content-Type: application/json" \
+  -d '{"miembroId": 1, "monto": 120000, "metodoPago": "TARJETA_RECHAZADA"}'
+
+# Inválido: sin reintentos, directo a la DLQ
+curl -X POST http://localhost:8080/api/gimnasio/pagos \
+  -H "Content-Type: application/json" \
+  -d '{"miembroId": 1, "monto": -5000, "metodoPago": "EFECTIVO"}'
+
+# Consultar estado
+curl http://localhost:8080/api/gimnasio/pagos           # todos, con estado e intentos
+curl http://localhost:8080/api/gimnasio/pagos/fallidos  # los que terminaron en la DLQ
+```
+*En la consola de `pago-service` se ven los intentos, el `Retries exhausted` y el log `[DEAD LETTER QUEUE]` con la cabecera `x-death` (cola de origen y razón `rejected`).*
+
+**Ver los mensajes dentro de la DLQ en el panel de RabbitMQ:** por defecto el consumidor de la DLQ los procesa al instante. Para que se queden en la cola, levantar `pago-service` con el consumidor pausado:
+```bash
+PAGO_DLQ_CONSUMIDOR_ACTIVO=false docker-compose up -d pago-service
+```
+Luego en `http://localhost:15672` → *Queues* → `pagos.procesamiento.dlq` → *Get messages*. Los pagos quedan en `PENDIENTE` con `intentos` y `motivoFallo` registrados. Al volver a `true` el consumidor vacía la DLQ (el reinicio borra la base H2 en memoria, así que esos pagos ya no aparecen en `/pagos`).
 
 > [!note] Postman
 > - También puede abrir en Postman la colección actualizada en `gimnasio.postman_collection.json`.

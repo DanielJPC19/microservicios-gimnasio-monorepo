@@ -267,6 +267,133 @@
       ]
     },
     {
+      "name": "pagos",
+      "item": [
+        {
+          "name": "pagos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_url}}/pagos",
+              "host": [
+                "{{api_url}}"
+              ],
+              "path": [
+                "pagos"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "pagos fallidos (DLQ)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_url}}/pagos/fallidos",
+              "host": [
+                "{{api_url}}"
+              ],
+              "path": [
+                "pagos",
+                "fallidos"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "pagos POST (aprobado)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"miembroId\": 1,\n  \"monto\": 120000,\n  \"metodoPago\": \"TARJETA\"\n}"
+            },
+            "url": {
+              "raw": "{{api_url}}/pagos",
+              "host": [
+                "{{api_url}}"
+              ],
+              "path": [
+                "pagos"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "pagos POST (rechazado: 3 reintentos -> DLQ)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"miembroId\": 1,\n  \"monto\": 120000,\n  \"metodoPago\": \"TARJETA_RECHAZADA\"\n}"
+            },
+            "url": {
+              "raw": "{{api_url}}/pagos",
+              "host": [
+                "{{api_url}}"
+              ],
+              "path": [
+                "pagos"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "pagos POST (inválido: directo a DLQ)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"miembroId\": 1,\n  \"monto\": -5000,\n  \"metodoPago\": \"EFECTIVO\"\n}"
+            },
+            "url": {
+              "raw": "{{api_url}}/pagos",
+              "host": [
+                "{{api_url}}"
+              ],
+              "path": [
+                "pagos"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "api",
       "request": {
         "auth": {

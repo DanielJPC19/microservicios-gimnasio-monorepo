@@ -8,6 +8,12 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
 
   miembro-service:
     build: ./services/miembro-microservice
@@ -16,7 +22,8 @@ services:
     environment:
       SPRING_RABBITMQ_HOST: rabbitmq
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
 
   entrenador-service:
     build: ./services/entrenador-microservice
@@ -30,7 +37,8 @@ services:
     environment:
       SPRING_RABBITMQ_HOST: rabbitmq
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
 
   clase-service:
     build: ./services/clase-microservice
@@ -48,7 +56,19 @@ services:
     environment:
       SPRING_RABBITMQ_HOST: rabbitmq
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
+
+  pago-service:
+    build: ./services/pago-microservice
+    ports:
+      - "8086:8086"
+    environment:
+      SPRING_RABBITMQ_HOST: rabbitmq
+      PAGO_DLQ_CONSUMIDOR_ACTIVO: ${PAGO_DLQ_CONSUMIDOR_ACTIVO:-true}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
 
   api-gateway:
     build: ./services/api-gateway
@@ -59,10 +79,11 @@ services:
       MIEMBRO_SERVICE_URL: http://miembro-service:8083
       EQUIPO_SERVICE_URL: http://equipo-service:8082
       CLASE_SERVICE_URL: http://clase-service:8084
-      NOTIFICACION_SERVICE_URL: http://notificacion-service:8085
+      PAGO_SERVICE_URL: http://pago-service:8086
     depends_on:
       - entrenador-service
       - miembro-service
       - equipo-service
       - clase-service
       - notificacion-service
+      - pago-service
