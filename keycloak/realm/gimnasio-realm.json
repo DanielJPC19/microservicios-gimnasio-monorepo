@@ -1,0 +1,186 @@
+{
+  "realm": "gimnasio",
+  "enabled": true,
+  "displayName": "Gimnasio Microservicios",
+  "displayNameHtml": "<strong>Gimnasio</strong> Microservicios",
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "failureFactor": 5,
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "roles": {
+    "realm": [
+      {
+        "name": "ROLE_ADMIN",
+        "description": "Administrador del sistema con acceso total"
+      },
+      {
+        "name": "ROLE_TRAINER",
+        "description": "Entrenador del gimnasio"
+      },
+      {
+        "name": "ROLE_MEMBER",
+        "description": "Miembro/socio del gimnasio"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "gimnasio-gateway",
+      "name": "API Gateway Client",
+      "description": "Cliente publico para el API Gateway (frontend/Postman)",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [],
+      "webOrigins": ["*"],
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true,
+      "defaultRoles": ["ROLE_MEMBER"]
+    },
+    {
+      "clientId": "gimnasio-entrenador",
+      "name": "Entrenador Microservice",
+      "description": "Cliente confidencial para el microservicio de entrenadores",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "entrenador-secret-2026",
+      "directAccessGrantsEnabled": false,
+      "standardFlowEnabled": false,
+      "serviceAccountsEnabled": true,
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true,
+      "defaultRoles": ["ROLE_TRAINER"]
+    },
+    {
+      "clientId": "gimnasio-equipo",
+      "name": "Equipo Microservice",
+      "description": "Cliente confidencial para el microservicio de equipos",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "equipo-secret-2026",
+      "directAccessGrantsEnabled": false,
+      "standardFlowEnabled": false,
+      "serviceAccountsEnabled": true,
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true,
+      "defaultRoles": ["ROLE_TRAINER"]
+    },
+    {
+      "clientId": "gimnasio-miembro",
+      "name": "Miembro Microservice",
+      "description": "Cliente confidencial para el microservicio de miembros",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "miembro-secret-2026",
+      "directAccessGrantsEnabled": false,
+      "standardFlowEnabled": false,
+      "serviceAccountsEnabled": true,
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true,
+      "defaultRoles": ["ROLE_MEMBER"]
+    },
+    {
+      "clientId": "gimnasio-clase",
+      "name": "Clase Microservice",
+      "description": "Cliente confidencial para el microservicio de clases",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "clase-secret-2026",
+      "directAccessGrantsEnabled": false,
+      "standardFlowEnabled": false,
+      "serviceAccountsEnabled": true,
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true,
+      "defaultRoles": ["ROLE_TRAINER"]
+    },
+    {
+      "clientId": "gimnasio-pago",
+      "name": "Pago Microservice",
+      "description": "Cliente confidencial para el microservicio de pagos",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "pago-secret-2026",
+      "directAccessGrantsEnabled": false,
+      "standardFlowEnabled": false,
+      "serviceAccountsEnabled": true,
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true,
+      "defaultRoles": ["ROLE_ADMIN"]
+    },
+    {
+      "clientId": "gimnasio-notificacion",
+      "name": "Notificacion Microservice",
+      "description": "Cliente confidencial para el microservicio de notificaciones",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "notificacion-secret-2026",
+      "directAccessGrantsEnabled": false,
+      "standardFlowEnabled": false,
+      "serviceAccountsEnabled": true,
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true,
+      "defaultRoles": ["ROLE_ADMIN"]
+    }
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Administrador",
+      "lastName": "General",
+      "email": "admin@gimnasio.com",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["ROLE_ADMIN"]
+    },
+    {
+      "username": "entrenador1",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Carlos",
+      "lastName": "Ramirez",
+      "email": "entrenador1@gimnasio.com",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "trainer123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["ROLE_TRAINER"]
+    },
+    {
+      "username": "miembro1",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Ana",
+      "lastName": "Martinez",
+      "email": "miembro1@gimnasio.com",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "member123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["ROLE_MEMBER"]
+    }
+  ]
+}
