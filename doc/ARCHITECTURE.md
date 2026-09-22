@@ -2,7 +2,7 @@
 
 ## Resumen
 
-Refactorización de un monolito Spring Boot ("Gimnasio") en microservicios independientes bajo principios de **Domain-Driven Design (DDD)**: 5 servicios de negocio (clase, entrenador, equipo, miembro, pago), un servicio consumidor de eventos (notificacion) y un API Gateway como punto de entrada único. La comunicación es síncrona vía REST (gateway → servicios, clase → entrenador) y asíncrona vía RabbitMQ (eventos de inscripción, averías y procesamiento de pagos con Dead Letter Queue). Persistencia mediante H2 en memoria, aislada por servicio.
+Refactorización de un monolito Spring Boot ("Gimnasio") en microservicios independientes bajo principios de **Domain-Driven Design (DDD)**: 5 servicios de negocio (clase, entrenador, equipo, miembro, pago), un servicio consumidor de eventos (notificacion), un servicio de monitoreo en tiempo real (monitoreo) y un API Gateway como punto de entrada único. La comunicación es síncrona vía REST (gateway → servicios, clase → entrenador), asíncrona vía RabbitMQ (eventos de inscripción, averías y procesamiento de pagos con Dead Letter Queue) y por streaming con Kafka (ocupación de clases, análisis de entrenamientos y recuperación con checkpoints). Persistencia mediante H2, aislada por servicio.
 
 **Stack tecnológico:**
 - **Runtime**: Java 17 (Spring Boot 3.3.2)
@@ -12,6 +12,7 @@ Refactorización de un monolito Spring Boot ("Gimnasio") en microservicios indep
 - **Seguridad**: Spring Security + OAuth2 Resource Server (JWT) + Keycloak 24
 - **Documentación API**: SpringDoc OpenAPI 2.6.0 (Swagger UI)
 - **Mensajería**: RabbitMQ 3 (Spring AMQP, serialización JSON con Jackson)
+- **Streaming**: Apache Kafka 3.8 en modo KRaft (Spring for Apache Kafka, Kafka Streams)
 - **Orquestación**: Docker Compose
 - **Dependencias comunes**: Lombok, Spring Data JPA
 
@@ -28,7 +29,9 @@ Refactorización de un monolito Spring Boot ("Gimnasio") en microservicios indep
 | **miembro-microservice** | 8083 | Membresía | Registrar miembros y emitir eventos de inscripción | `Miembro`, `MiembroInscritoEvent` |
 | **notificacion-microservice**| 8085 | Notificaciones | Consumir eventos asincrónicos (bienvenida, tickets, app push) | Listeners RabbitMQ |
 | **pago-microservice** | 8086 | Facturación | Recibir pagos, procesarlos de forma asíncrona y gestionar los fallidos vía DLQ | `Pago`, `PagoSolicitadoEvent` |
+| **monitoreo-microservice** | 8087 | Monitoreo | Dashboard de ocupación en tiempo real, análisis de entrenamientos con Kafka Streams y procesamiento con checkpoints | `OcupacionClase`, `ResumenEntrenamiento`, `Checkpoint` |
 | **RabbitMQ** | 5672 / 15672 | Broker | Enrutamiento de colas y exchanges AMQP | Direct & Fanout Exchanges, Dead Letter Exchange |
+| **Kafka** | 29092 / 9092 | Streaming | Log distribuido de eventos con retención configurable (KRaft, sin Zookeeper) | Topics `ocupacion-clases`, `datos-entrenamiento`, `resumen-entrenamiento` |
 | **Keycloak** | 8180 | Identidad | Proveedor de identidad (IAM): autenticación, autorización y emisión de tokens JWT | Realm `gimnasio`, roles, clients |
 
 ---
@@ -145,6 +148,20 @@ graph TB
 - **Declaración en productor y consumidor**: exchanges, colas y bindings se declaran tanto en el servicio que publica (`miembro`, `equipo`) como en `notificacion-microservice` (`pago-microservice` es productor y consumidor, declara todo en un solo lugar). La declaración es idempotente, así que si el consumidor no ha arrancado los eventos quedan encolados en vez de descartarse por falta de binding.
 - **Arranque ordenado**: en `docker-compose.yml` RabbitMQ tiene `healthcheck` (`rabbitmq-diagnostics ping`) y los servicios que lo usan esperan con `condition: service_healthy`.
 
+### 4. Streaming con Kafka (Parte 3)
+
+**Infraestructura**: un broker `apache/kafka:3.8.0` en modo KRaft (broker + controller en el mismo nodo). `KAFKA_AUTO_CREATE_TOPICS_ENABLE=false`: los topics se declaran como beans `NewTopic` en el productor y en `monitoreo-microservice` (declaración idempotente, igual que con RabbitMQ). Los mensajes se serializan como JSON sin headers de tipo; cada consumidor fija su DTO (`spring.json.value.default.type`), así productor y consumidor no necesitan compartir el nombre de clase.
+
+| Topic | Particiones | Key | Retención | Productor → Consumidor |
+|---|---|---|---|---|
+| `ocupacion-clases` | 3 | `claseId` | 7 días | `clase` → `monitoreo` (dashboard + recuperación) |
+| `datos-entrenamiento` | 3 | `miembroId` | 30 días | `miembro` → `monitoreo` (Kafka Streams + recuperación) |
+| `resumen-entrenamiento` | 3 | `miembroId` | compactado | Kafka Streams → cualquier consumidor |
+
+- **Ocupación en tiempo real**: `POST /clases/{id}/ingreso` y `/salida` actualizan `ocupacionActual` con bloqueo pesimista (no se supera la capacidad con peticiones simultáneas) y publican `OcupacionClase` **después del commit**. `OcupacionClaseConsumer` (`@KafkaListener`, grupo `monitoreo-grupo`) actualiza el dashboard en memoria y lo difunde por SSE. Como el dashboard vive en memoria, al asignarse las particiones el consumidor hace `seekToBeginning` y lo reconstruye releyendo el log retenido.
+- **Análisis de entrenamientos**: `POST /miembros/{id}/entrenamientos` publica `DatosEntrenamiento` de forma síncrona (el topic es el único almacenamiento del dato, si falla responde `503`). `KafkaStreamsConfig` agrupa por miembro, aplica `TimeWindows.ofSizeWithNoGrace(7 días)`, agrega en el state store `resumen-entrenamiento-store` (respaldado por un changelog topic) y publica en `resumen-entrenamiento`. `GET /monitoreo/entrenamiento/{miembroId}/resumen` consulta el store con Interactive Queries.
+- **Recuperación ante fallos**: `RecuperacionService` usa un `KafkaConsumer` propio (grupo `recuperacion-grupo`, `enable.auto.commit=false`) en un hilo dedicado. Cada registro se guarda en `EventoProcesado` y su offset en `Checkpoint` **en la misma transacción**: si el servicio cae a mitad, ambos se revierten y el registro se reprocesa una sola vez. En `onPartitionsAssigned` hace `seek(checkpoint + 1)` o `seekToBeginning` si no hay checkpoint. Si la retención ya borró ese offset, `auto.offset.reset=earliest` continúa desde el más antiguo disponible. Si falla un registro, vuelve a su offset y lo reintenta en el siguiente `poll`.
+
 ---
 
 ## Seguridad (Keycloak + JWT)
@@ -255,10 +272,11 @@ Cada microservicio utiliza su propia **instancia H2 en memoria**:
 | `equipo-microservice` | `jdbc:h2:mem:gimnasiodb` | `EQUIPO` (auto-creado) | Ephemeral, resiembra en boot |
 | `miembro-microservice` | `jdbc:h2:mem:gimnasiodb` | `MIEMBRO` (auto-creado) | Ephemeral, resiembra en boot |
 | `pago-microservice` | `jdbc:h2:mem:gimnasiodb` | `PAGO` (auto-creado) | Ephemeral, sin datos semilla |
+| `monitoreo-microservice` | `jdbc:h2:file:/data/monitoreo-db` | `CHECKPOINT`, `EVENTO_PROCESADO` | **Persistente** (volumen `monitoreo-data`, `ddl-auto=update`) |
 
 **Notas importantes:**
 - Aunque todas usan el mismo nombre de BD (`gimnasiodb`), son **instancias separadas e independientes** — cada JVM de Spring Boot levanta su propio H2 en memoria, sin compartir datos reales
-- Los datos **se pierden al reiniciar** cada servicio
+- Los datos **se pierden al reiniciar** cada servicio, excepto en `monitoreo-microservice`: sus checkpoints deben sobrevivir a una caída, por eso usa H2 en archivo sobre un volumen de Docker (también guarda ahí el `state.dir` de Kafka Streams)
 - Cada servicio tiene un `DataLoader.java` que resiembra datos de prueba en el arranque (`@Component` + `CommandLineRunner`)
 - **No hay persistencia externa** (PostgreSQL, MySQL, etc.)
 
@@ -353,6 +371,22 @@ GET    /api/gimnasio/miembros
        Response: [ { "id": 1, "nombre": "Carlos López", ... }, ... ]
 ```
 
+### Monitoreo Service (8087)
+```
+GET    /api/gimnasio/monitoreo/ocupacion
+       Response: [ { "claseId": "1", "nombreClase": "Yoga Matutino", "ocupacionActual": 2, "capacidadMaxima": 20, "porcentajeOcupacion": 10.0, ... } ]
+
+GET    /api/gimnasio/monitoreo/ocupacion/stream        (text/event-stream, solo directo a 8087)
+       event: ocupacion  data: { "claseId": "1", "ocupacionActual": 3, ... }
+
+GET    /api/gimnasio/monitoreo/entrenamiento/{miembroId}/resumen?semanas=4
+       Response: [ { "miembroId": 1, "totalSesiones": 2, "totalMinutos": 105, "totalCalorias": 750, "sesionesPorTipo": { "CARDIO": 1, "FUERZA": 1 }, "inicioVentana": "...", "finVentana": "..." } ]
+
+GET    /api/gimnasio/monitoreo/recuperacion/estado      (solo ADMIN)
+       Response: { "checkpoints": [ { "id": "ocupacion-clases-0", "ultimoOffset": 4, ... } ], "eventosProcesados": { "ocupacion-clases": 5, "datos-entrenamiento": 2 } }
+```
+Nuevos endpoints en otros servicios: `POST /api/gimnasio/clases/{id}/ingreso`, `POST /api/gimnasio/clases/{id}/salida` y `POST /api/gimnasio/miembros/{id}/entrenamientos` (`{ "tipo": "CARDIO", "duracionMinutos": 45, "calorias": 400 }`).
+
 ### Pago Service (8086)
 ```
 POST   /api/gimnasio/pagos
@@ -431,6 +465,8 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/gimnasio/entren
 | **Gateway manual** | Cada ruta nueva requiere un controlador con `RestClient` en `api-gateway` | Migrar a Spring Cloud Gateway |
 | **DTOs de eventos duplicados** | `MiembroInscritoEvent` y `EquipoAveriadoEvent` se copian en productor y consumidor; deben mantenerse en el mismo paquete porque el `__TypeId__` usa el nombre completo de la clase | Módulo compartido de contratos o mapeo de tipos explícito |
 | **H2 en memoria** | Datos se pierden en restart; no persistencia | Migrar a PostgreSQL/MySQL + volúmenes persistentes |
+| **Kafka de un solo nodo** | Sin replicación: si cae el broker se detiene el streaming (los datos del contenedor se pierden con `docker compose down`) | 3 brokers con `replication.factor=3` y volumen para `/var/lib/kafka/data` |
+| **SSE no pasa por el gateway** | El stream del dashboard se consume directo en `monitoreo-service:8087` | Spring Cloud Gateway (soporta streaming) |
 | **Sin tests unitarios/integración** | Solo smoke test de contexto Spring | Escribir unit tests (Mockito) e IT con testcontainers |
 | **Healthcheck de Keycloak** | El healthcheck del compose usa `/dev/tcp` y apunta a `/health/ready`; puede no funcionar si la imagen no tiene bash o el endpoint no está en puerto 8080 | Verificar al ejecutar `docker compose up`; fallback: cambiar `condition: service_healthy` → `service_started` |
 | **Diagrama .drawio vacío** | Entregable pendiente | Este archivo `.md` complementa/reemplaza ese diagrama |
