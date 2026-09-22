@@ -5,6 +5,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestClient;
@@ -58,4 +59,31 @@ public class ClaseGatewayController {
         return ResponseEntity.ok(respuesta);
     }
 
+    @PostMapping("/{id}/ingreso")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TRAINER', 'MEMBER')")
+    @Operation(summary = "Registrar ingreso a clase", description = "Incrementa la ocupacion y la publica en Kafka")
+    @ApiResponse(responseCode = "200", description = "Ingreso registrado")
+    @ApiResponse(responseCode = "401", description = "Token JWT no valido")
+    public ResponseEntity<String> registrarIngreso(@PathVariable Long id) {
+        String respuesta = restClient.post()
+                .uri(claseServiceUrl + "/api/gimnasio/clases/" + id + "/ingreso")
+                .retrieve()
+                .body(String.class);
+
+        return ResponseEntity.ok(respuesta);
+    }
+
+    @PostMapping("/{id}/salida")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TRAINER', 'MEMBER')")
+    @Operation(summary = "Registrar salida de clase", description = "Decrementa la ocupacion y la publica en Kafka")
+    @ApiResponse(responseCode = "200", description = "Salida registrada")
+    @ApiResponse(responseCode = "401", description = "Token JWT no valido")
+    public ResponseEntity<String> registrarSalida(@PathVariable Long id) {
+        String respuesta = restClient.post()
+                .uri(claseServiceUrl + "/api/gimnasio/clases/" + id + "/salida")
+                .retrieve()
+                .body(String.class);
+
+        return ResponseEntity.ok(respuesta);
+    }
 }

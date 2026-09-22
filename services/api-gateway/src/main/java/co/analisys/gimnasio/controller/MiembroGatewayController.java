@@ -5,6 +5,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestClient;
@@ -58,4 +59,19 @@ public class MiembroGatewayController {
         return ResponseEntity.ok(respuesta);
     }
 
+    @PostMapping("/{id}/entrenamientos")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TRAINER', 'MEMBER')")
+    @Operation(summary = "Registrar entrenamiento", description = "Publica una sesion de entrenamiento en Kafka")
+    @ApiResponse(responseCode = "200", description = "Entrenamiento registrado")
+    @ApiResponse(responseCode = "401", description = "Token JWT no valido")
+    public ResponseEntity<String> registrarEntrenamiento(@PathVariable Long id, @RequestBody String entrenamiento) {
+        String respuesta = restClient.post()
+                .uri(miembroServiceUrl + "/api/gimnasio/miembros/" + id + "/entrenamientos")
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .body(entrenamiento)
+                .retrieve()
+                .body(String.class);
+
+        return ResponseEntity.ok(respuesta);
+    }
 }
