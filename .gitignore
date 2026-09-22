@@ -31,3 +31,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Datos locales (H2 en archivo, estado de Kafka Streams) ###
+data/
