@@ -1,4 +1,36 @@
 services:
+  # Kafka en modo KRaft (sin Zookeeper): un único nodo actúa como broker y controller.
+  kafka:
+    image: apache/kafka:3.8.0
+    container_name: gimnasio-kafka
+    ports:
+      - "29092:29092"
+    environment:
+      # UUID en base64 (22 caracteres) que identifica el clúster KRaft.
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,PLAINTEXT_HOST://:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      # Los topics se declaran explícitamente desde los servicios (NewTopic) con su retención.
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      # Retención por defecto del broker: 7 días. Cada topic puede sobrescribirla.
+      KAFKA_LOG_RETENTION_HOURS: 168
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+
   rabbitmq:
     image: rabbitmq:3-management
     container_name: gimnasio-rabbitmq
@@ -44,10 +76,13 @@ services:
       - "8083:8083"
     environment:
       SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/gimnasio
       KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/gimnasio/protocol/openid-connect/certs
     depends_on:
       rabbitmq:
+        condition: service_healthy
+      kafka:
         condition: service_healthy
       keycloak:
         condition: service_healthy
@@ -83,11 +118,14 @@ services:
       - "8084:8084"
     environment:
       ENTRENADOR_SERVICE_URL: http://entrenador-service:8081
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/gimnasio
       KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/gimnasio/protocol/openid-connect/certs
     depends_on:
       entrenador-service:
         condition: service_started
+      kafka:
+        condition: service_healthy
       keycloak:
         condition: service_healthy
 
@@ -116,6 +154,25 @@ services:
       keycloak:
         condition: service_healthy
 
+  monitoreo-service:
+    build: ./services/monitoreo-microservice
+    ports:
+      - "8087:8087"
+    environment:
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      MONITOREO_DB_URL: jdbc:h2:file:/data/monitoreo-db
+      KAFKA_STREAMS_STATE_DIR: /data/kafka-streams
+      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/gimnasio
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/gimnasio/protocol/openid-connect/certs
+    volumes:
+      # Checkpoints (H2 en archivo) y estado local de Kafka Streams sobreviven a reinicios del contenedor.
+      - monitoreo-data:/data
+    depends_on:
+      kafka:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+
   api-gateway:
     build: ./services/api-gateway
     ports:
@@ -126,6 +183,7 @@ services:
       EQUIPO_SERVICE_URL: http://equipo-service:8082
       CLASE_SERVICE_URL: http://clase-service:8084
       PAGO_SERVICE_URL: http://pago-service:8086
+      MONITOREO_SERVICE_URL: http://monitoreo-service:8087
       KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/gimnasio
       KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/gimnasio/protocol/openid-connect/certs
     depends_on:
@@ -141,5 +199,10 @@ services:
         condition: service_started
       pago-service:
         condition: service_started
+      monitoreo-service:
+        condition: service_started
       keycloak:
         condition: service_healthy
+
+volumes:
+  monitoreo-data:
