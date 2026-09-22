@@ -21,6 +21,7 @@ Refactorización de un monolito Spring Boot de gestión de gimnasio en microserv
 | `notificacion-microservice`| 8085  | Consumidor de eventos / Notificaciones |
 | `pago-microservice`       | 8086   | Procesamiento de pagos (con Dead Letter Queue) |
 | `RabbitMQ`                | 5672 / 15672 | Message Broker & Dashboard UI |
+| `Keycloak`                | 8180   | Proveedor de identidad (IAM), autenticación JWT |
 
 ### Comunicación entre Servicios
 - **Síncrona (REST)**: `clase-service` consulta a `entrenador-service` para enriquecer la respuesta de clases con los datos del instructor asignado. `api-gateway` rutea las peticiones externas.
@@ -49,8 +50,9 @@ services/
   notificacion-microservice/
   pago-microservice/
 doc/
-pom.xml            # aggregator, compila los módulos
-docker-compose.yml # orquesta los 7 servicios + rabbitmq
+keycloak/realm/        # realm JSON para importación automática en Keycloak
+pom.xml                # aggregator, compila los módulos
+docker-compose.yml     # orquesta los 7 servicios + rabbitmq + keycloak
 ```
 
 ## Cómo correr
@@ -61,10 +63,29 @@ docker-compose.yml # orquesta los 7 servicios + rabbitmq
 docker-compose up --build
 ```
 > El panel web de administración de RabbitMQ queda disponible en: `http://localhost:15672` (usuario: `guest`, contraseña: `guest`).
+> Keycloak queda disponible en: `http://localhost:8180` (usuario admin: `admin`, contraseña: `admin`). El realm `gimnasio` se importa automáticamente.
+
+**Obtener token JWT para pruebas:**
+```bash
+curl -X POST http://localhost:8180/realms/gimnasio/protocol/openid-connect/token \
+  -d "grant_type=password" \
+  -d "client_id=gimnasio-gateway" \
+  -d "username=admin" \
+  -d "password=admin123"
+```
+> Usar el `access_token` del response como header: `Authorization: Bearer <token>`.
+
+**Usuarios de prueba:**
+
+| Usuario | Contraseña | Roles |
+|---------|-----------|-------|
+| `admin` | `admin123` | ROLE_ADMIN |
+| `entrenador1` | `trainer123` | ROLE_TRAINER |
+| `miembro1` | `member123` | ROLE_MEMBER |
 
 **Sin Docker, cada servicio suelto:**
 
-1. Levantar RabbitMQ localmente (o vía `docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3-management`).
+1. Levantar RabbitMQ y Keycloak localmente.
 2. Compilar y arrancar:
 ```bash
 ./mvnw compile              # compila todos los módulos desde la raíz
@@ -77,11 +98,35 @@ cd services/pago-microservice && ./mvnw spring-boot:run
 cd services/api-gateway && ./mvnw spring-boot:run
 ```
 
+## Swagger / OpenAPI
+
+Cada microservicio expone documentación interactiva:
+
+| Servicio | Swagger UI |
+|----------|-----------|
+| API Gateway | `http://localhost:8080/swagger-ui.html` |
+| Entrenador | `http://localhost:8081/swagger-ui.html` |
+| Equipo | `http://localhost:8082/swagger-ui.html` |
+| Miembro | `http://localhost:8083/swagger-ui.html` |
+| Clase | `http://localhost:8084/swagger-ui.html` |
+| Pago | `http://localhost:8086/swagger-ui.html` |
+
+> Los endpoints protegidos requieren un token JWT. En Swagger UI, clic en "Authorize" y pegar el token obtenido de Keycloak.
+
 ## Probar Flujos Asincrónicos (RabbitMQ)
+
+> Todos los endpoints (excepto `GET /api/gimnasio`) requieren autenticación JWT.
+> Agregar el header `Authorization: Bearer <token>` a cada request, o usar Swagger UI con "Authorize".
 
 ### 1. Inscripción de Miembro (Direct Exchange -> Notificación de bienvenida)
 ```bash
+# Obtener token (reutilizar TOKEN en todos los ejemplos)
+TOKEN=$(curl -s -X POST http://localhost:8180/realms/gimnasio/protocol/openid-connect/token \
+  -d "grant_type=password" -d "client_id=gimnasio-gateway" \
+  -d "username=admin" -d "password=admin123" | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+
 curl -X POST http://localhost:8080/api/gimnasio/miembros \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"nombre": "Carlos Mendoza", "email": {"email": "carlos@gmail.com"}, "fechaInscripcion": {"fechaInscripcion": "2026-09-14"}}'
 ```
@@ -90,6 +135,7 @@ curl -X POST http://localhost:8080/api/gimnasio/miembros \
 ### 2. Reporte de Avería de Equipo (Fanout Exchange Pub/Sub -> 3 colas en simultáneo)
 ```bash
 curl -X POST http://localhost:8080/api/gimnasio/equipos/1/reportar-averia \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"motivo": "Fallo en motor de tracción y banda rota", "gravedad": "ALTA"}'
 ```
@@ -99,22 +145,25 @@ curl -X POST http://localhost:8080/api/gimnasio/equipos/1/reportar-averia \
 ```bash
 # Aprobado: 1 intento
 curl -X POST http://localhost:8080/api/gimnasio/pagos \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"miembroId": 1, "monto": 120000, "metodoPago": "TARJETA"}'
 
 # Rechazado por la pasarela: 3 intentos (1s, 2s) y luego a la DLQ
 curl -X POST http://localhost:8080/api/gimnasio/pagos \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"miembroId": 1, "monto": 120000, "metodoPago": "TARJETA_RECHAZADA"}'
 
 # Inválido: sin reintentos, directo a la DLQ
 curl -X POST http://localhost:8080/api/gimnasio/pagos \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"miembroId": 1, "monto": -5000, "metodoPago": "EFECTIVO"}'
 
-# Consultar estado
-curl http://localhost:8080/api/gimnasio/pagos           # todos, con estado e intentos
-curl http://localhost:8080/api/gimnasio/pagos/fallidos  # los que terminaron en la DLQ
+# Consultar estado (solo ADMIN)
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/gimnasio/pagos
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/gimnasio/pagos/fallidos
 ```
 *En la consola de `pago-service` se ven los intentos, el `Retries exhausted` y el log `[DEAD LETTER QUEUE]` con la cabecera `x-death` (cola de origen y razón `rejected`).*
 

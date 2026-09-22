@@ -9,6 +9,8 @@ Refactorización de un monolito Spring Boot ("Gimnasio") en microservicios indep
 - **Build**: Maven (mvnw)
 - **Persistencia**: H2 (JDBC, JPA)
 - **API**: REST (Spring Web)
+- **Seguridad**: Spring Security + OAuth2 Resource Server (JWT) + Keycloak 24
+- **Documentación API**: SpringDoc OpenAPI 2.6.0 (Swagger UI)
 - **Mensajería**: RabbitMQ 3 (Spring AMQP, serialización JSON con Jackson)
 - **Orquestación**: Docker Compose
 - **Dependencias comunes**: Lombok, Spring Data JPA
@@ -27,6 +29,7 @@ Refactorización de un monolito Spring Boot ("Gimnasio") en microservicios indep
 | **notificacion-microservice**| 8085 | Notificaciones | Consumir eventos asincrónicos (bienvenida, tickets, app push) | Listeners RabbitMQ |
 | **pago-microservice** | 8086 | Facturación | Recibir pagos, procesarlos de forma asíncrona y gestionar los fallidos vía DLQ | `Pago`, `PagoSolicitadoEvent` |
 | **RabbitMQ** | 5672 / 15672 | Broker | Enrutamiento de colas y exchanges AMQP | Direct & Fanout Exchanges, Dead Letter Exchange |
+| **Keycloak** | 8180 | Identidad | Proveedor de identidad (IAM): autenticación, autorización y emisión de tokens JWT | Realm `gimnasio`, roles, clients |
 
 ---
 
@@ -38,8 +41,12 @@ graph TB
         CLIENT["Cliente / Postman / Frontend"]
     end
 
+    subgraph "Identidad"
+        KEYCLOAK["Keycloak (8180)<br/>Realm: gimnasio<br/>Tokens JWT"]
+    end
+
     subgraph "API Gateway"
-        GATEWAY["API Gateway (8080)"]
+        GATEWAY["API Gateway (8080)<br/>Spring Security + JWT"]
     end
 
     subgraph "Microservicios de Negocio"
@@ -69,14 +76,17 @@ graph TB
         NOTIF["Notificacion Service (8085)"]
     end
 
-    CLIENT --> GATEWAY
+    CLIENT -->|Token JWT| KEYCLOAK
+    CLIENT -->|Authorization: Bearer token| GATEWAY
+    GATEWAY -->|Valida JWT| KEYCLOAK
     GATEWAY --> CLASE
     GATEWAY --> ENTRENADOR
     GATEWAY --> EQUIPO
     GATEWAY --> MIEMBRO
     GATEWAY --> PAGO
 
-    CLASE -->|REST GET /entrenadores/{id}| ENTRENADOR
+    CLASE -->|REST GET /entrenadores/{id}<br/>propaga Authorization| ENTRENADOR
+    ENTRENADOR -->|Valida JWT| KEYCLOAK
 
     %% Flujos Asincrónicos
     MIEMBRO -->|Publica MiembroInscritoEvent| EX_DIRECT
@@ -134,6 +144,102 @@ graph TB
 ### 3. Garantías de entrega
 - **Declaración en productor y consumidor**: exchanges, colas y bindings se declaran tanto en el servicio que publica (`miembro`, `equipo`) como en `notificacion-microservice` (`pago-microservice` es productor y consumidor, declara todo en un solo lugar). La declaración es idempotente, así que si el consumidor no ha arrancado los eventos quedan encolados en vez de descartarse por falta de binding.
 - **Arranque ordenado**: en `docker-compose.yml` RabbitMQ tiene `healthcheck` (`rabbitmq-diagnostics ping`) y los servicios que lo usan esperan con `condition: service_healthy`.
+
+---
+
+## Seguridad (Keycloak + JWT)
+
+### Visión General
+Todos los microservicios (excepto `notificacion-microservice`) están protegidos con **Spring Security + OAuth2 Resource Server** validando tokens JWT emitidos por **Keycloak 24**. El API Gateway valida el token en la entrada y propaga el header `Authorization` a los servicios internos.
+
+### Realm `gimnasio`
+- **Nombre**: `gimnasio`
+- **Configuración**: importado automáticamente al iniciar Keycloak via `--import-realm`
+- **Archivo**: `keycloak/realm/gimnasio-realm.json`
+- **Token lifespan**: 300 segundos (5 minutos)
+
+### Roles
+
+| Rol | Descripción |
+|---|---|
+| `ROLE_ADMIN` | Administrador del sistema con acceso total |
+| `ROLE_TRAINER` | Entrenador del gimnasio |
+| `ROLE_MEMBER` | Miembro/socio del gimnasio |
+
+### Clients
+
+| Client ID | Tipo | Secret | Propósito |
+|---|---|---|---|
+| `gimnasio-gateway` | public | — | Frontend/Postman → obtiene token con username+password (Resource Owner Password) |
+| `gimnasio-entrenador` | confidential | `entrenador-secret-2026` | Microservicio de entrenadores |
+| `gimnasio-equipo` | confidential | `equipo-secret-2026` | Microservicio de equipos |
+| `gimnasio-miembro` | confidential | `miembro-secret-2026` | Microservicio de miembros |
+| `gimnasio-clase` | confidential | `clase-secret-2026` | Microservicio de clases |
+| `gimnasio-pago` | confidential | `pago-secret-2026` | Microservicio de pagos |
+| `gimnasio-notificacion` | confidential | `notificacion-secret-2026` | Microservicio de notificaciones |
+
+### Usuarios de Prueba
+
+| Usuario | Contraseña | Roles |
+|---|---|---|
+| `admin` | `admin123` | `ROLE_ADMIN` |
+| `entrenador1` | `trainer123` | `ROLE_TRAINER` |
+| `miembro1` | `member123` | `ROLE_MEMBER` |
+
+### Obtener Token JWT
+```bash
+# Obtener token para admin (RESOURCE OWNER PASSWORD CREDENTIALS)
+curl -X POST http://localhost:8180/realms/gimnasio/protocol/openid-connect/token \
+  -d "grant_type=password" \
+  -d "client_id=gimnasio-gateway" \
+  -d "username=admin" \
+  -d "password=admin123"
+# El access_token se usa como Authorization: Bearer <token>
+```
+
+### Integración por Microservicio
+Cada microservicio (excepto `notificacion`) incluye:
+- **`SecurityConfig.java`**: Configura el `SecurityFilterChain` con `oauth2ResourceServer().jwt()`. Extrae roles del claim `realm_access.roles` del JWT de Keycloak y los mapea a authorities Spring Security con prefijo `ROLE_`.
+- **`application.properties`**: `spring.security.oauth2.resourceserver.jwt.issuer-uri` y `jwk-set-uri` apuntando a Keycloak.
+
+### Propagación de Token
+- **API Gateway → microservicios**: `RestClientConfig.java` agrega un request interceptor que lee el header `Authorization` del request entrante y lo reenvía al microservicio destino.
+- **clase-microservice → entrenador-microservice**: `ClaseService.java` propaga el header `Authorization` al hacer `RestTemplate.exchange()`.
+
+### Autorización por Endpoint
+
+| Endpoint | Método | Roles Permitidos |
+|---|---|---|
+| `GET /api/gimnasio` | GET | Público (health check) |
+| `GET /api/gimnasio/entrenadores` | GET | ADMIN, TRAINER, MEMBER |
+| `POST /api/gimnasio/entrenadores` | POST | ADMIN |
+| `GET /api/gimnasio/equipos` | GET | ADMIN, TRAINER, MEMBER |
+| `POST /api/gimnasio/equipos` | POST | ADMIN |
+| `POST /api/gimnasio/equipos/{id}/reportar-averia` | POST | ADMIN, TRAINER |
+| `GET /api/gimnasio/miembros` | GET | ADMIN, TRAINER |
+| `POST /api/gimnasio/miembros` | POST | ADMIN, MEMBER |
+| `GET /api/gimnasio/clases` | GET | ADMIN, TRAINER, MEMBER |
+| `POST /api/gimnasio/clases` | POST | ADMIN, TRAINER |
+| `GET /api/gimnasio/pagos` | GET | ADMIN |
+| `POST /api/gimnasio/pagos` | POST | ADMIN, MEMBER |
+| `GET /api/gimnasio/pagos/fallidos` | GET | ADMIN |
+
+---
+
+## Documentación de APIs (Swagger/OpenAPI)
+
+Cada microservicio expone Swagger UI y la definición OpenAPI 3.0:
+
+| Servicio | Swagger UI | OpenAPI JSON |
+|---|---|---|
+| API Gateway | `http://localhost:8080/swagger-ui.html` | `http://localhost:8080/v3/api-docs` |
+| Entrenador | `http://localhost:8081/swagger-ui.html` | `http://localhost:8081/v3/api-docs` |
+| Equipo | `http://localhost:8082/swagger-ui.html` | `http://localhost:8082/v3/api-docs` |
+| Miembro | `http://localhost:8083/swagger-ui.html` | `http://localhost:8083/v3/api-docs` |
+| Clase | `http://localhost:8084/swagger-ui.html` | `http://localhost:8084/v3/api-docs` |
+| Pago | `http://localhost:8086/swagger-ui.html` | `http://localhost:8086/v3/api-docs` |
+
+Cada Swagger UI está configurado con el security scheme **Bearer JWT** → puede probar endpoints protegidos ingresando el token obtenido de Keycloak.
 
 ---
 
@@ -265,49 +371,54 @@ GET    /api/gimnasio/pagos/fallidos
 ## Cómo Ejecutar el Sistema
 
 ### Prerequisitos
-- Java 21 (o compatible con Spring Boot 3.3.2)
+- Java 17 (o compatible con Spring Boot 3.3.2)
 - Maven 3.8+
+- Docker y Docker Compose
 
-### Pasos de Arranque
+### Con Docker Compose (recomendado)
 
-**1. Arrancar Entrenador Service primero** (dependerá hacia él):
 ```bash
-cd services/entrenador-microservice
-./mvnw spring-boot:run
-# Esperará en http://localhost:8081
+docker-compose up --build
 ```
 
-**2. En otra terminal, arrancar Clase Service** (depende de Entrenador):
+Servicios disponibles:
+- **Keycloak**: `http://localhost:8180` (admin: admin / admin)
+- **API Gateway**: `http://localhost:8080`
+- **RabbitMQ Dashboard**: `http://localhost:15672` (guest / guest)
+- **Swagger UI** (ejemplo): `http://localhost:8081/swagger-ui.html`
+
+### Obtener Token para Pruebas
 ```bash
-cd services/clase-microservice
-./mvnw spring-boot:run
-# Esperará en http://localhost:8080
+curl -X POST http://localhost:8180/realms/gimnasio/protocol/openid-connect/token \
+  -d "grant_type=password" \
+  -d "client_id=gimnasio-gateway" \
+  -d "username=admin" \
+  -d "password=admin123"
 ```
 
-**3. En otra terminal, arrancar Equipo Service** (standalone):
-```bash
-cd services/equipo-microservice
-./mvnw spring-boot:run
-# Esperará en http://localhost:8082
-```
+### Sin Docker, cada servicio suelto
 
-**4. En otra terminal, arrancar Miembro Service** (standalone):
+1. Arrancar RabbitMQ y Keycloak localmente.
+2. Compilar y arrancar:
 ```bash
-cd services/miembro-microservice
-./mvnw spring-boot:run
-# Esperará en http://localhost:8083
+./mvnw compile              # compila todos los módulos desde la raíz
+cd services/entrenador-microservice && ./mvnw spring-boot:run
+cd services/clase-microservice && ./mvnw spring-boot:run
+cd services/equipo-microservice && ./mvnw spring-boot:run
+cd services/miembro-microservice && ./mvnw spring-boot:run
+cd services/notificacion-microservice && ./mvnw spring-boot:run
+cd services/pago-microservice && ./mvnw spring-boot:run
+cd services/api-gateway && ./mvnw spring-boot:run
 ```
 
 ### Validación
 ```bash
-# Cada servicio expone H2 Console (opcional)
-curl http://localhost:8080/h2-console   # Clase
-curl http://localhost:8081/h2-console   # Entrenador
-curl http://localhost:8082/h2-console   # Equipo
-curl http://localhost:8083/h2-console   # Miembro
+# Probar un endpoint con token
+TOKEN=$(curl -s -X POST http://localhost:8180/realms/gimnasio/protocol/openid-connect/token \
+  -d "grant_type=password" -d "client_id=gimnasio-gateway" \
+  -d "username=admin" -d "password=admin123" | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
 
-# Probar un endpoint
-curl http://localhost:8080/api/gimnasio/clases
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/gimnasio/entrenadores
 ```
 
 ---
@@ -321,6 +432,7 @@ curl http://localhost:8080/api/gimnasio/clases
 | **DTOs de eventos duplicados** | `MiembroInscritoEvent` y `EquipoAveriadoEvent` se copian en productor y consumidor; deben mantenerse en el mismo paquete porque el `__TypeId__` usa el nombre completo de la clase | Módulo compartido de contratos o mapeo de tipos explícito |
 | **H2 en memoria** | Datos se pierden en restart; no persistencia | Migrar a PostgreSQL/MySQL + volúmenes persistentes |
 | **Sin tests unitarios/integración** | Solo smoke test de contexto Spring | Escribir unit tests (Mockito) e IT con testcontainers |
+| **Healthcheck de Keycloak** | El healthcheck del compose usa `/dev/tcp` y apunta a `/health/ready`; puede no funcionar si la imagen no tiene bash o el endpoint no está en puerto 8080 | Verificar al ejecutar `docker compose up`; fallback: cambiar `condition: service_healthy` → `service_started` |
 | **Diagrama .drawio vacío** | Entregable pendiente | Este archivo `.md` complementa/reemplaza ese diagrama |
 
 
