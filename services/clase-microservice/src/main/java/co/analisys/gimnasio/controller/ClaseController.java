@@ -15,6 +15,7 @@ import java.util.List;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
@@ -42,5 +43,25 @@ public class ClaseController {
     @ApiResponse(responseCode = "401", description = "Token JWT no valido o ausente")
     public List<ClaseResponse> obtenerTodasClases() {
         return claseService.obtenerTodasClases();
+    }
+
+    @PostMapping("/{id}/ingreso")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TRAINER', 'MEMBER')")
+    @Operation(summary = "Registrar ingreso a clase", description = "Incrementa la ocupacion de la clase y publica la actualizacion en el topic ocupacion-clases")
+    @ApiResponse(responseCode = "200", description = "Ingreso registrado")
+    @ApiResponse(responseCode = "404", description = "Clase no encontrada")
+    @ApiResponse(responseCode = "409", description = "La clase ya esta llena")
+    public Clase registrarIngreso(@PathVariable Long id) {
+        return claseService.registrarIngreso(id);
+    }
+
+    @PostMapping("/{id}/salida")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TRAINER', 'MEMBER')")
+    @Operation(summary = "Registrar salida de clase", description = "Decrementa la ocupacion de la clase y publica la actualizacion en el topic ocupacion-clases")
+    @ApiResponse(responseCode = "200", description = "Salida registrada")
+    @ApiResponse(responseCode = "404", description = "Clase no encontrada")
+    @ApiResponse(responseCode = "409", description = "La clase no tiene asistentes")
+    public Clase registrarSalida(@PathVariable Long id) {
+        return claseService.registrarSalida(id);
     }
 }

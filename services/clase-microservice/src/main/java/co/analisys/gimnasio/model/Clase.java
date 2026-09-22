@@ -16,4 +16,6 @@ public class Clase {
     private Capacidad capacidad;
 
     private Long entrenadorId;
+
+    private int ocupacionActual;
 }

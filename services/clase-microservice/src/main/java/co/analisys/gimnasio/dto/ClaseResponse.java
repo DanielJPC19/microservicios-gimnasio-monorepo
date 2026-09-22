@@ -10,5 +10,6 @@ public class ClaseResponse {
     private String nombre;
     private LocalDateTime horario;
     private int capacidadMaxima;
+    private int ocupacionActual;
     private EntrenadorDTO entrenador;
 }
