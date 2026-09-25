@@ -121,6 +121,38 @@ Cada microservicio expone documentación interactiva:
 
 > Los endpoints protegidos requieren un token JWT. En Swagger UI, clic en "Authorize" y pegar el token obtenido de Keycloak.
 
+## Pruebas de Seguridad (Keycloak + Roles JWT)
+
+```bash
+# 1. Obtener tokens para cada rol
+ADMIN_TOKEN=$(curl -s -X POST http://localhost:8180/realms/gimnasio/protocol/openid-connect/token \
+  -d "grant_type=password" -d "client_id=gimnasio-gateway" \
+  -d "username=admin" -d "password=admin123" | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+
+TRAINER_TOKEN=$(curl -s -X POST http://localhost:8180/realms/gimnasio/protocol/openid-connect/token \
+  -d "grant_type=password" -d "client_id=gimnasio-gateway" \
+  -d "username=entrenador1" -d "password=trainer123" | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+
+MEMBER_TOKEN=$(curl -s -X POST http://localhost:8180/realms/gimnasio/protocol/openid-connect/token \
+  -d "grant_type=password" -d "client_id=gimnasio-gateway" \
+  -d "username=miembro1" -d "password=member123" | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+
+# 2. Token válido con rol autorizado -> 200 OK
+curl -i -H "Authorization: Bearer $ADMIN_TOKEN" http://localhost:8080/api/gimnasio/clases
+
+# 3. Token inválido o ausente -> 401 Unauthorized
+curl -i -H "Authorization: Bearer token.invalido.123" http://localhost:8080/api/gimnasio/clases
+
+# 4. Autorización por roles -> 403 Forbidden cuando el rol no tiene permiso
+# MEMBER intentando listar miembros (solo permitido a ADMIN y TRAINER) -> 403 Forbidden
+curl -i -H "Authorization: Bearer $MEMBER_TOKEN" http://localhost:8080/api/gimnasio/miembros
+
+# TRAINER intentando crear un entrenador (solo permitido a ADMIN) -> 403 Forbidden
+curl -i -X POST http://localhost:8080/api/gimnasio/entrenadores \
+  -H "Authorization: Bearer $TRAINER_TOKEN" -H "Content-Type: application/json" \
+  -d '{"nombre": "Pedro Gómez", "especialidad": "Crossfit"}'
+```
+
 ## Probar Flujos Asincrónicos (RabbitMQ)
 
 > Todos los endpoints (excepto `GET /api/gimnasio`) requieren autenticación JWT.

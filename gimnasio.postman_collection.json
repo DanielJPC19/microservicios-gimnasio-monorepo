@@ -13,9 +13,6 @@
         {
           "name": "clases",
           "request": {
-            "auth": {
-              "type": "noauth"
-            },
             "method": "GET",
             "header": [],
             "url": {
@@ -33,9 +30,6 @@
         {
           "name": "clases POST",
           "request": {
-            "auth": {
-              "type": "noauth"
-            },
             "method": "POST",
             "header": [
               {
@@ -58,6 +52,32 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "clases ingreso (Kafka)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{api_url}}/clases/1/ingreso",
+              "host": ["{{api_url}}"],
+              "path": ["clases", "1", "ingreso"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "clases salida (Kafka)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{api_url}}/clases/1/salida",
+              "host": ["{{api_url}}"],
+              "path": ["clases", "1", "salida"]
+            }
+          },
+          "response": []
         }
       ]
     },
@@ -67,9 +87,6 @@
         {
           "name": "entrenadores",
           "request": {
-            "auth": {
-              "type": "noauth"
-            },
             "method": "GET",
             "header": [],
             "url": {
@@ -105,9 +122,6 @@
         {
           "name": "entrenadores POST",
           "request": {
-            "auth": {
-              "type": "noauth"
-            },
             "method": "POST",
             "header": [
               {
@@ -156,9 +170,6 @@
         {
           "name": "miembros POST",
           "request": {
-            "auth": {
-              "type": "noauth"
-            },
             "method": "POST",
             "header": [
               {
@@ -178,6 +189,28 @@
               "path": [
                 "miembros"
               ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "miembros registrar entrenamiento (Kafka)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo\": \"CARDIO\",\n  \"duracionMinutos\": 45,\n  \"calorias\": 400\n}"
+            },
+            "url": {
+              "raw": "{{api_url}}/miembros/1/entrenamientos",
+              "host": ["{{api_url}}"],
+              "path": ["miembros", "1", "entrenamientos"]
             }
           },
           "response": []
@@ -207,9 +240,6 @@
         {
           "name": "equipos POST",
           "request": {
-            "auth": {
-              "type": "noauth"
-            },
             "method": "POST",
             "header": [
               {
@@ -236,9 +266,6 @@
         {
           "name": "equipos reportar averia (Pub/Sub Fanout)",
           "request": {
-            "auth": {
-              "type": "noauth"
-            },
             "method": "POST",
             "header": [
               {
@@ -307,9 +334,6 @@
         {
           "name": "pagos POST (aprobado)",
           "request": {
-            "auth": {
-              "type": "noauth"
-            },
             "method": "POST",
             "header": [
               {
@@ -336,9 +360,6 @@
         {
           "name": "pagos POST (rechazado: 3 reintentos -> DLQ)",
           "request": {
-            "auth": {
-              "type": "noauth"
-            },
             "method": "POST",
             "header": [
               {
@@ -365,9 +386,6 @@
         {
           "name": "pagos POST (inválido: directo a DLQ)",
           "request": {
-            "auth": {
-              "type": "noauth"
-            },
             "method": "POST",
             "header": [
               {
@@ -394,6 +412,209 @@
       ]
     },
     {
+      "name": "monitoreo (Kafka)",
+      "item": [
+        {
+          "name": "ocupacion actual",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_url}}/monitoreo/ocupacion",
+              "host": ["{{api_url}}"],
+              "path": ["monitoreo", "ocupacion"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "resumen semanal entrenamiento (Kafka Streams)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_url}}/monitoreo/entrenamiento/1/resumen",
+              "host": ["{{api_url}}"],
+              "path": ["monitoreo", "entrenamiento", "1", "resumen"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "estado recuperacion checkpoints (solo ADMIN)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_url}}/monitoreo/recuperacion/estado",
+              "host": ["{{api_url}}"],
+              "path": ["monitoreo", "recuperacion", "estado"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "seguridad (Keycloak)",
+      "item": [
+        {
+          "name": "1. Login Admin (ROLE_ADMIN)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('token', jsonData.access_token);",
+                  "    if (pm.environment.name) { pm.environment.set('token', jsonData.access_token); }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "password", "type": "text" },
+                { "key": "client_id", "value": "gimnasio-gateway", "type": "text" },
+                { "key": "username", "value": "admin", "type": "text" },
+                { "key": "password", "value": "admin123", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{keycloak_url}}/realms/gimnasio/protocol/openid-connect/token",
+              "host": ["{{keycloak_url}}"],
+              "path": ["realms", "gimnasio", "protocol", "openid-connect", "token"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "2. Login Entrenador (ROLE_TRAINER)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('token', jsonData.access_token);",
+                  "    if (pm.environment.name) { pm.environment.set('token', jsonData.access_token); }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "password", "type": "text" },
+                { "key": "client_id", "value": "gimnasio-gateway", "type": "text" },
+                { "key": "username", "value": "entrenador1", "type": "text" },
+                { "key": "password", "value": "trainer123", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{keycloak_url}}/realms/gimnasio/protocol/openid-connect/token",
+              "host": ["{{keycloak_url}}"],
+              "path": ["realms", "gimnasio", "protocol", "openid-connect", "token"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3. Login Miembro (ROLE_MEMBER)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('token', jsonData.access_token);",
+                  "    if (pm.environment.name) { pm.environment.set('token', jsonData.access_token); }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "password", "type": "text" },
+                { "key": "client_id", "value": "gimnasio-gateway", "type": "text" },
+                { "key": "username", "value": "miembro1", "type": "text" },
+                { "key": "password", "value": "member123", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{keycloak_url}}/realms/gimnasio/protocol/openid-connect/token",
+              "host": ["{{keycloak_url}}"],
+              "path": ["realms", "gimnasio", "protocol", "openid-connect", "token"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4. Prueba Token Inválido (401 Unauthorized)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                { "key": "token", "value": "token.invalido.123", "type": "string" }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_url}}/clases",
+              "host": ["{{api_url}}"],
+              "path": ["clases"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "api",
       "request": {
         "auth": {
@@ -411,6 +632,16 @@
       "response": []
     }
   ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
   "event": [
     {
       "listen": "prerequest",
@@ -438,6 +669,14 @@
   "variable": [
     {
       "key": "api_url",
+      "value": "http://localhost:8080/api/gimnasio"
+    },
+    {
+      "key": "keycloak_url",
+      "value": "http://localhost:8180"
+    },
+    {
+      "key": "token",
       "value": ""
     }
   ]

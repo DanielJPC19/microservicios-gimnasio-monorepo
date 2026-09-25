@@ -194,6 +194,7 @@ Todos los microservicios (excepto `notificacion-microservice`) están protegidos
 | `gimnasio-clase` | confidential | `clase-secret-2026` | Microservicio de clases |
 | `gimnasio-pago` | confidential | `pago-secret-2026` | Microservicio de pagos |
 | `gimnasio-notificacion` | confidential | `notificacion-secret-2026` | Microservicio de notificaciones |
+| `gimnasio-monitoreo` | confidential | `monitoreo-secret-2026` | Microservicio de monitoreo |
 
 ### Usuarios de Prueba
 

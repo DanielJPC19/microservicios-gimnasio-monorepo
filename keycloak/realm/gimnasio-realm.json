@@ -131,6 +131,20 @@
       "protocol": "openid-connect",
       "fullScopeAllowed": true,
       "defaultRoles": ["ROLE_ADMIN"]
+    },
+    {
+      "clientId": "gimnasio-monitoreo",
+      "name": "Monitoreo Microservice",
+      "description": "Cliente confidencial para el microservicio de monitoreo",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "monitoreo-secret-2026",
+      "directAccessGrantsEnabled": false,
+      "standardFlowEnabled": false,
+      "serviceAccountsEnabled": true,
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true,
+      "defaultRoles": ["ROLE_ADMIN"]
     }
   ],
   "users": [
