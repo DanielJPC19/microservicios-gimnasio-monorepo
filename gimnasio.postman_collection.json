@@ -54,6 +54,28 @@
           "response": []
         },
         {
+          "name": "clases cambiar horario (Pub/Sub Fanout)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nuevoHorario\": \"2026-09-28T18:30:00\",\n  \"motivo\": \"Cambio de salón principal por mantenimiento\"\n}"
+            },
+            "url": {
+              "raw": "{{api_url}}/clases/1/horario",
+              "host": ["{{api_url}}"],
+              "path": ["clases", "1", "horario"]
+            }
+          },
+          "response": []
+        },
+        {
           "name": "clases ingreso (Kafka)",
           "request": {
             "method": "POST",

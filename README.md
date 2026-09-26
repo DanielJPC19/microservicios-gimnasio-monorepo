@@ -172,14 +172,21 @@ curl -X POST http://localhost:8080/api/gimnasio/miembros \
 ```
 *Ver en la consola de `notificacion-service` el log con el envío del correo de bienvenida.*
 
-### 2. Reporte de Avería de Equipo (Fanout Exchange Pub/Sub -> 3 colas en simultáneo)
+### 2. Patrón Publish/Subscribe (Fanout Exchange -> 3 colas en simultáneo)
 ```bash
+# Opción A: Cambio de horario de clase (notifica a App Móvil, Emailing y Auditoría)
+curl -X PUT http://localhost:8080/api/gimnasio/clases/1/horario \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"nuevoHorario": "2026-09-28T18:30:00", "motivo": "Cambio de salón principal"}'
+
+# Opción B: Reporte de avería de equipo (notifica a Mantenimiento, Entrenadores y App Socios)
 curl -X POST http://localhost:8080/api/gimnasio/equipos/1/reportar-averia \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"motivo": "Fallo en motor de tracción y banda rota", "gravedad": "ALTA"}'
 ```
-*Ver en la consola de `notificacion-service` los 3 logs procesados simultáneamente (Mantenimiento Técnico, Alerta Entrenadores y Push App Socios).*
+*Ver en la consola de `notificacion-service` los 3 logs procesados simultáneamente para cada evento.*
 
 ### 3. Pagos y Dead Letter Queue
 ```bash
@@ -268,6 +275,28 @@ docker compose logs monitoreo-service | grep RECUPERACION
 *Se ven los logs `Reanudando ocupacion-clases-N desde el offset X` y luego `Procesado ...` solo para los eventos nuevos. El checkpoint vive en H2 en archivo, en el volumen `monitoreo-data`.*
 
 > [!note] Postman
-> - También puede abrir en Postman la colección actualizada en `gimnasio.postman_collection.json`.
+> - También puede abrir en Postman la colección actualizada en `gimnasio.postman_collection.json` y el entorno `gimnasio.postman_environment.json`.
 > - Establezca la variable `api_url` en: `http://localhost:8080/api/gimnasio`.
+
+---
+
+## Documentación OpenAPI / Swagger UI (Capturas)
+
+Las capturas de la documentación interactiva OpenAPI 3.0 de todos los microservicios se encuentran en [`doc/swagger/`](doc/swagger/):
+
+| API Gateway (`:8080`) - Parte 1 | API Gateway (`:8080`) - Parte 2 |
+|---|---|
+| ![API Gateway Swagger 1](doc/swagger/01-api-gateway-swagger.png) | ![API Gateway Swagger 2](doc/swagger/01-api-gateway-swagger2.png) |
+
+| Clase Service (`:8084`) | Monitoreo Service (`:8087`) |
+|---|---|
+| ![Clase Service Swagger](doc/swagger/05-clase-service-swagger.png) | ![Monitoreo Service Swagger](doc/swagger/07-monitoreo-service-swagger.png) |
+
+| Entrenador Service (`:8081`) | Equipo Service (`:8082`) |
+|---|---|
+| ![Entrenador Service Swagger](doc/swagger/02-entrenador-service-swagger.png) | ![Equipo Service Swagger](doc/swagger/03-equipo-service-swagger.png) |
+
+| Miembro Service (`:8083`) | Pago Service (`:8086`) |
+|---|---|
+| ![Miembro Service Swagger](doc/swagger/04-miembro-service-swagger.png) | ![Pago Service Swagger](doc/swagger/06-pago-service-swagger.png) |
 

@@ -26,6 +26,12 @@ public class RabbitMQConsumerConfig {
     public static final String EQUIPO_ENTRENADORES_QUEUE = "equipo.averia.entrenadores";
     public static final String EQUIPO_APP_SOCIOS_QUEUE = "equipo.averia.app-socios";
 
+    // Constantes Punto 3: Cambio de Horario de Clases (Fanout Exchange - Pub/Sub)
+    public static final String CLASE_HORARIO_EXCHANGE = "gimnasio.clase.horario.events";
+    public static final String CLASE_HORARIO_APP_MOVIL_QUEUE = "clase.horario.app-movil";
+    public static final String CLASE_HORARIO_EMAIL_QUEUE = "clase.horario.email";
+    public static final String CLASE_HORARIO_AUDITORIA_QUEUE = "clase.horario.auditoria";
+
     // -------------------------------------------------------------
     // Beans Punto 2: Miembro Direct Exchange, Cola y Binding
     // -------------------------------------------------------------
@@ -82,6 +88,44 @@ public class RabbitMQConsumerConfig {
     @Bean
     public Binding bindingEquipoAppSocios(Queue equipoAppSociosQueue, FanoutExchange equipoEventsExchange) {
         return BindingBuilder.bind(equipoAppSociosQueue).to(equipoEventsExchange);
+    }
+
+    // -------------------------------------------------------------
+    // Beans Punto 3: Fanout Exchange Cambio de Horario de Clases y 3 Colas Suscritas
+    // -------------------------------------------------------------
+    @Bean
+    public FanoutExchange claseHorarioExchange() {
+        return new FanoutExchange(CLASE_HORARIO_EXCHANGE);
+    }
+
+    @Bean
+    public Queue claseHorarioAppMovilQueue() {
+        return new Queue(CLASE_HORARIO_APP_MOVIL_QUEUE, true);
+    }
+
+    @Bean
+    public Queue claseHorarioEmailQueue() {
+        return new Queue(CLASE_HORARIO_EMAIL_QUEUE, true);
+    }
+
+    @Bean
+    public Queue claseHorarioAuditoriaQueue() {
+        return new Queue(CLASE_HORARIO_AUDITORIA_QUEUE, true);
+    }
+
+    @Bean
+    public Binding bindingClaseHorarioAppMovil(Queue claseHorarioAppMovilQueue, FanoutExchange claseHorarioExchange) {
+        return BindingBuilder.bind(claseHorarioAppMovilQueue).to(claseHorarioExchange);
+    }
+
+    @Bean
+    public Binding bindingClaseHorarioEmail(Queue claseHorarioEmailQueue, FanoutExchange claseHorarioExchange) {
+        return BindingBuilder.bind(claseHorarioEmailQueue).to(claseHorarioExchange);
+    }
+
+    @Bean
+    public Binding bindingClaseHorarioAuditoria(Queue claseHorarioAuditoriaQueue, FanoutExchange claseHorarioExchange) {
+        return BindingBuilder.bind(claseHorarioAuditoriaQueue).to(claseHorarioExchange);
     }
 
     // -------------------------------------------------------------

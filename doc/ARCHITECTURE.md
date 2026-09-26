@@ -36,7 +36,7 @@ Refactorización de un monolito Spring Boot ("Gimnasio") en microservicios indep
 
 ---
 
-## Diagrama de Componentes y Mensajería Asincrónica
+## Diagrama de Componentes, Mensajería Asincrónica (RabbitMQ) y Streaming (Kafka)
 
 ```mermaid
 graph TB
@@ -44,7 +44,7 @@ graph TB
         CLIENT["Cliente / Postman / Frontend"]
     end
 
-    subgraph "Identidad"
+    subgraph "Identidad (IAM)"
         KEYCLOAK["Keycloak (8180)<br/>Realm: gimnasio<br/>Tokens JWT"]
     end
 
@@ -69,14 +69,30 @@ graph TB
         Q_ENTR["Cola: equipo.averia.entrenadores"]
         Q_APP["Cola: equipo.averia.app-socios"]
 
+        EX_CLASE_HORARIO["Fanout Exchange:<br/>gimnasio.clase.horario.events"]
+        Q_CH_APP["Cola: clase.horario.app-movil"]
+        Q_CH_EMAIL["Cola: clase.horario.email"]
+        Q_CH_AUD["Cola: clase.horario.auditoria"]
+
         EX_PAGOS["Direct Exchange:<br/>gimnasio.pagos.exchange"]
         Q_PAGOS["Cola: pagos.procesamiento<br/>(x-dead-letter-exchange)"]
         EX_DLX["Dead Letter Exchange:<br/>gimnasio.pagos.dlx"]
         Q_DLQ["DLQ: pagos.procesamiento.dlq"]
     end
 
-    subgraph "Microservicio Consumidor"
+    subgraph "Microservicio Consumidor (RabbitMQ)"
         NOTIF["Notificacion Service (8085)"]
+    end
+
+    subgraph "Apache Kafka KRaft (29092 / 9092)"
+        T_OCUP["Topic: ocupacion-clases<br/>(3 particiones, retención 7d)"]
+        T_ENTR["Topic: datos-entrenamiento<br/>(3 particiones, retención 30d)"]
+        T_RES["Topic: resumen-entrenamiento<br/>(3 particiones, compactado)"]
+    end
+
+    subgraph "Monitoreo y Streaming (Kafka)"
+        MON["Monitoreo Service (8087)<br/>• Dashboard SSE (monitoreo-grupo)<br/>• Kafka Streams (ventana 7d)<br/>• RecuperacionService (recuperacion-grupo)"]
+        DB_MON[("H2 Persistente (/data)<br/>Checkpoints + State Store")]
     end
 
     CLIENT -->|Token JWT| KEYCLOAK
@@ -87,11 +103,12 @@ graph TB
     GATEWAY --> EQUIPO
     GATEWAY --> MIEMBRO
     GATEWAY --> PAGO
+    GATEWAY --> MON
 
     CLASE -->|REST GET /entrenadores/{id}<br/>propaga Authorization| ENTRENADOR
     ENTRENADOR -->|Valida JWT| KEYCLOAK
 
-    %% Flujos Asincrónicos
+    %% Flujos Asincrónicos (RabbitMQ)
     MIEMBRO -->|Publica MiembroInscritoEvent| EX_DIRECT
     EX_DIRECT -->|routingKey: miembro.inscrito| Q_MIEMBRO
     Q_MIEMBRO --> NOTIF
@@ -104,12 +121,29 @@ graph TB
     Q_ENTR --> NOTIF
     Q_APP --> NOTIF
 
+    CLASE -->|Publica HorarioClaseCambiadoEvent| EX_CLASE_HORARIO
+    EX_CLASE_HORARIO --> Q_CH_APP
+    EX_CLASE_HORARIO --> Q_CH_EMAIL
+    EX_CLASE_HORARIO --> Q_CH_AUD
+    Q_CH_APP --> NOTIF
+    Q_CH_EMAIL --> NOTIF
+    Q_CH_AUD --> NOTIF
+
     PAGO -->|Publica PagoSolicitadoEvent| EX_PAGOS
     EX_PAGOS -->|routingKey: pago.procesar| Q_PAGOS
     Q_PAGOS -->|Consume con reintentos| PAGO
     Q_PAGOS -.->|Rechazo sin reencolar| EX_DLX
     EX_DLX -->|routingKey: pago.fallido| Q_DLQ
     Q_DLQ -->|Marca FALLIDO| PAGO
+
+    %% Flujos de Streaming (Kafka)
+    CLASE -->|Publica OcupacionClase| T_OCUP
+    MIEMBRO -->|Publica DatosEntrenamiento| T_ENTR
+    T_OCUP -->|Consume tiempo real + Checkpoints| MON
+    T_ENTR -->|Kafka Streams + Checkpoints| MON
+    MON -->|Publica ResumenEntrenamiento| T_RES
+    MON <-->|Guarda Offset / State Store| DB_MON
+    MON -.->|Stream SSE /ocupacion/stream| CLIENT
 ```
 
 ---
@@ -126,6 +160,12 @@ graph TB
   - **Routing Key**: `miembro.inscrito`
   - **Cola**: `miembro.inscripcion.notificacion`
   - **Comportamiento**: Al registrar un miembro en `miembro-microservice`, se emite `MiembroInscritoEvent`. `notificacion-microservice` lo consume de forma desacoplada y simula el correo de bienvenida.
+- **Fanout Exchange (Patrón Pub/Sub - Cambio de Horario de Clases)**:
+  - **Exchange**: `gimnasio.clase.horario.events`
+  - **Comportamiento**: Cuando se reprograma el horario de una clase (`PUT /api/gimnasio/clases/{id}/horario`), `clase-microservice` publica `HorarioClaseCambiadoEvent`. RabbitMQ difunde el evento a 3 colas suscritas en simultáneo en `notificacion-microservice`:
+    1. `clase.horario.app-movil`: Envía notificación push a la app móvil de los socios inscritos.
+    2. `clase.horario.email`: Despacha correos de actualización de calendario a socios e instructor.
+    3. `clase.horario.auditoria`: Registra el cambio de horario en la bitácora de auditoría.
 - **Fanout Exchange (Patrón Pub/Sub - Avería de Equipos)**:
   - **Exchange**: `gimnasio.equipo.events`
   - **Comportamiento**: Cuando un equipo sufre una falla o requiere mantenimiento urgente (`POST /api/gimnasio/equipos/{id}/reportar-averia`), `equipo-microservice` publica `EquipoAveriadoEvent`. RabbitMQ difunde el evento a 3 colas suscritas en simultáneo:
@@ -145,7 +185,7 @@ graph TB
   - **Nota**: productor y consumidor viven en el mismo servicio porque el procesamiento asíncrono es parte del contexto de Facturación; la cola desacopla la recepción del pago de la llamada a la pasarela.
 
 ### 3. Garantías de entrega
-- **Declaración en productor y consumidor**: exchanges, colas y bindings se declaran tanto en el servicio que publica (`miembro`, `equipo`) como en `notificacion-microservice` (`pago-microservice` es productor y consumidor, declara todo en un solo lugar). La declaración es idempotente, así que si el consumidor no ha arrancado los eventos quedan encolados en vez de descartarse por falta de binding.
+- **Declaración en productor y consumidor**: exchanges, colas y bindings se declaran tanto en el servicio que publica (`miembro`, `equipo`, `clase`) como en `notificacion-microservice` (`pago-microservice` es productor y consumidor, declara todo en un solo lugar). La declaración es idempotente, así que si el consumidor no ha arrancado los eventos quedan encolados en vez de descartarse por falta de binding.
 - **Arranque ordenado**: en `docker-compose.yml` RabbitMQ tiene `healthcheck` (`rabbitmq-diagnostics ping`) y los servicios que lo usan esperan con `condition: service_healthy`.
 
 ### 4. Streaming con Kafka (Parte 3)
@@ -236,11 +276,19 @@ Cada microservicio (excepto `notificacion`) incluye:
 | `POST /api/gimnasio/equipos/{id}/reportar-averia` | POST | ADMIN, TRAINER |
 | `GET /api/gimnasio/miembros` | GET | ADMIN, TRAINER |
 | `POST /api/gimnasio/miembros` | POST | ADMIN, MEMBER |
+| `POST /api/gimnasio/miembros/{id}/entrenamientos` | POST | ADMIN, TRAINER, MEMBER |
 | `GET /api/gimnasio/clases` | GET | ADMIN, TRAINER, MEMBER |
 | `POST /api/gimnasio/clases` | POST | ADMIN, TRAINER |
+| `PUT /api/gimnasio/clases/{id}/horario` | PUT | ADMIN, TRAINER |
+| `POST /api/gimnasio/clases/{id}/ingreso` | POST | ADMIN, TRAINER, MEMBER |
+| `POST /api/gimnasio/clases/{id}/salida` | POST | ADMIN, TRAINER, MEMBER |
 | `GET /api/gimnasio/pagos` | GET | ADMIN |
 | `POST /api/gimnasio/pagos` | POST | ADMIN, MEMBER |
 | `GET /api/gimnasio/pagos/fallidos` | GET | ADMIN |
+| `GET /api/gimnasio/monitoreo/ocupacion` | GET | ADMIN, TRAINER, MEMBER |
+| `GET /api/gimnasio/monitoreo/ocupacion/stream` | GET | ADMIN, TRAINER, MEMBER |
+| `GET /api/gimnasio/monitoreo/entrenamiento/{miembroId}/resumen` | GET | ADMIN, TRAINER, MEMBER |
+| `GET /api/gimnasio/monitoreo/recuperacion/estado` | GET | ADMIN |
 
 ---
 
@@ -256,8 +304,27 @@ Cada microservicio expone Swagger UI y la definición OpenAPI 3.0:
 | Miembro | `http://localhost:8083/swagger-ui.html` | `http://localhost:8083/v3/api-docs` |
 | Clase | `http://localhost:8084/swagger-ui.html` | `http://localhost:8084/v3/api-docs` |
 | Pago | `http://localhost:8086/swagger-ui.html` | `http://localhost:8086/v3/api-docs` |
+| Monitoreo | `http://localhost:8087/swagger-ui.html` | `http://localhost:8087/v3/api-docs` |
 
 Cada Swagger UI está configurado con el security scheme **Bearer JWT** → puede probar endpoints protegidos ingresando el token obtenido de Keycloak.
+
+### Capturas de Pantalla (Swagger / OpenAPI 3.0)
+
+| API Gateway (`:8080`) - Parte 1 | API Gateway (`:8080`) - Parte 2 |
+|---|---|
+| ![API Gateway Swagger 1](swagger/01-api-gateway-swagger.png) | ![API Gateway Swagger 2](swagger/01-api-gateway-swagger2.png) |
+
+| Clase Service (`:8084`) | Monitoreo Service (`:8087`) |
+|---|---|
+| ![Clase Service Swagger](swagger/05-clase-service-swagger.png) | ![Monitoreo Service Swagger](swagger/07-monitoreo-service-swagger.png) |
+
+| Entrenador Service (`:8081`) | Equipo Service (`:8082`) |
+|---|---|
+| ![Entrenador Service Swagger](swagger/02-entrenador-service-swagger.png) | ![Equipo Service Swagger](swagger/03-equipo-service-swagger.png) |
+
+| Miembro Service (`:8083`) | Pago Service (`:8086`) |
+|---|---|
+| ![Miembro Service Swagger](swagger/04-miembro-service-swagger.png) | ![Pago Service Swagger](swagger/06-pago-service-swagger.png) |
 
 ---
 

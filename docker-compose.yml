@@ -120,12 +120,15 @@ services:
       - "8084:8084"
     environment:
       ENTRENADOR_SERVICE_URL: http://entrenador-service:8081
+      SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KEYCLOAK_ISSUER_URI: http://localhost:8180/realms/gimnasio
       KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/gimnasio/protocol/openid-connect/certs
     depends_on:
       entrenador-service:
         condition: service_started
+      rabbitmq:
+        condition: service_healthy
       kafka:
         condition: service_healthy
       keycloak:
