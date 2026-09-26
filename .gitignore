@@ -34,3 +34,9 @@ build/
 
 ### Datos locales (H2 en archivo, estado de Kafka Streams) ###
 data/
+
+### macOS y archivos de referencia locales ###
+.DS_Store
+/taller_*.md
+/Taller_*.md
+/*.pdf
