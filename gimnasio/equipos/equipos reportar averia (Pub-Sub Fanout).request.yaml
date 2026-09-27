@@ -1,0 +1,18 @@
+$kind: http-request
+name: equipos reportar averia (Pub/Sub Fanout)
+url: "{{api_url}}/equipos/1/reportar-averia"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "motivo": "Fallo en motor de tracción y banda desgastada",
+      "gravedad": "ALTA"
+    }
+scripts:
+  - type: afterResponse
+    code: pm.test("Status code is 200 or 404", function () { pm.expect(pm.response.code).to.be.oneOf([200, 404]); });
+    language: text/javascript
+order: 3000

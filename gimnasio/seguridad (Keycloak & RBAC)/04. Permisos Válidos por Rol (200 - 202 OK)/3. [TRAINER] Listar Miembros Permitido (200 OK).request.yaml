@@ -1,0 +1,15 @@
+$kind: http-request
+url: "{{api_url}}/miembros"
+method: GET
+auth:
+  type: bearer
+  credentials:
+    token: "{{trainer_token}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("TRAINER accede a listar miembros -> 200 OK", function () {
+          pm.response.to.have.status(200);
+      });
+    language: text/javascript
+order: 3000

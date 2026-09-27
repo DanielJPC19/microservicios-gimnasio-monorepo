@@ -6,8 +6,10 @@ services:
     ports:
       - "29092:29092"
     environment:
-      # Evita crash SIGILL de OpenJDK 21 en chips Apple Silicon (M4 / macOS Virtualization Framework)
-      JAVA_TOOL_OPTIONS: "-XX:UseSVE=0"
+      # Evita crash SIGILL de OpenJDK 21 en chips Apple Silicon (M4 / macOS Virtualization Framework).
+      # NOTA: En Linux x86_64 esta opción hace crashear la JVM (Unrecognized VM option 'UseSVE=0').
+      # Activar solo si estás en Mac con Apple Silicon M4:
+      # JAVA_TOOL_OPTIONS: "-XX:UseSVE=0"
       # UUID en base64 (22 caracteres) que identifica el clúster KRaft.
       CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
       KAFKA_NODE_ID: 1

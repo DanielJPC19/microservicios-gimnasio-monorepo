@@ -1,0 +1,22 @@
+$kind: http-request
+url: "{{api_url}}/entrenadores"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "nombre": "Json Incompleto
+auth:
+  type: bearer
+  credentials:
+    token: "{{admin_token}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("JSON malformado es rechazado por el servidor (400 o 500)", function () {
+          pm.expect(pm.response.code).to.be.oneOf([400, 500]);
+      });
+    language: text/javascript
+order: 2000

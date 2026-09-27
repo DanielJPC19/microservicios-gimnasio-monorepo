@@ -1,0 +1,18 @@
+$kind: http-request
+url: "{{api_url}}/miembros/1/entrenamientos"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "tipo": "CARDIO",
+      "duracionMinutos": 45,
+      "calorias": 400
+    }
+scripts:
+  - type: afterResponse
+    code: pm.test("Status code is 200", function () { pm.response.to.have.status(200); });
+    language: text/javascript
+order: 3000

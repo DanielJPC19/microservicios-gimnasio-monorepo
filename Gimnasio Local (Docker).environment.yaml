@@ -1,0 +1,14 @@
+name: Gimnasio Local (Docker)
+values:
+  - key: api_url
+    value: 'http://localhost:8080/api/gimnasio'
+  - key: keycloak_url
+    value: 'http://localhost:8180'
+  - key: token
+    value: ''
+  - key: admin_token
+    value: ''
+  - key: trainer_token
+    value: ''
+  - key: member_token
+    value: ''

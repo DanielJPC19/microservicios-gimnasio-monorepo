@@ -1,0 +1,26 @@
+$kind: http-request
+url: "{{api_url}}/clases"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "nombre": "Clase No Autorizada",
+      "horario": { "horario": "2026-09-01T10:00:00" },
+      "capacidad": { "capacidad": 20 },
+      "entrenadorId": 1
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{member_token}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("MEMBER no autorizado a programar clase -> 403 Forbidden", function () {
+          pm.response.to.have.status(403);
+      });
+    language: text/javascript
+order: 2000

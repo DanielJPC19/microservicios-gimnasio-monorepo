@@ -1,0 +1,18 @@
+$kind: http-request
+url: "{{api_url}}/pagos"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "miembroId": 1,
+      "monto": 120000,
+      "metodoPago": "TARJETA"
+    }
+scripts:
+  - type: afterResponse
+    code: pm.test("Status code is 202 Accepted", function () { pm.response.to.have.status(202); });
+    language: text/javascript
+order: 3000

@@ -1,0 +1,15 @@
+$kind: http-request
+url: "{{api_url}}/monitoreo/recuperacion/estado"
+method: GET
+auth:
+  type: bearer
+  credentials:
+    token: "{{trainer_token}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("TRAINER no autorizado a ver estado recuperación -> 403 Forbidden", function () {
+          pm.response.to.have.status(403);
+      });
+    language: text/javascript
+order: 6000

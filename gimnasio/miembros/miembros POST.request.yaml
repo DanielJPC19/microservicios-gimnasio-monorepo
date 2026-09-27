@@ -1,0 +1,18 @@
+$kind: http-request
+url: "{{api_url}}/miembros"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "nombre": "Juan Perez",
+      "email": { "email": "juan@email.com" },
+      "fechaInscripcion": { "fechaInscripcion": "2026-08-31" }
+    }
+scripts:
+  - type: afterResponse
+    code: pm.test("Status code is 200", function () { pm.response.to.have.status(200); });
+    language: text/javascript
+order: 2000

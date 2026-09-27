@@ -1,0 +1,15 @@
+$kind: http-request
+url: "{{api_url}}/pagos"
+method: GET
+auth:
+  type: bearer
+  credentials:
+    token: "{{admin_token}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("ADMIN accede a listar pagos -> 200 OK", function () {
+          pm.response.to.have.status(200);
+      });
+    language: text/javascript
+order: 1000

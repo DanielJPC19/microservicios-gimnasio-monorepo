@@ -1,0 +1,19 @@
+$kind: http-request
+name: "pagos POST (inválido: directo a DLQ)"
+url: "{{api_url}}/pagos"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "miembroId": 1,
+      "monto": -5000,
+      "metodoPago": "EFECTIVO"
+    }
+scripts:
+  - type: afterResponse
+    code: pm.test("Status code is 202 Accepted", function () { pm.response.to.have.status(202); });
+    language: text/javascript
+order: 5000

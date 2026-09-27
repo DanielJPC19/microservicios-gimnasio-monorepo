@@ -1,0 +1,25 @@
+$kind: http-request
+url: "{{api_url}}/equipos"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "nombre": "Pesa Rusa 16kg",
+      "descripcion": "Kettlebell",
+      "cantidad": 5
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{member_token}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("MEMBER no autorizado a registrar equipo -> 403 Forbidden", function () {
+          pm.response.to.have.status(403);
+      });
+    language: text/javascript
+order: 4000

@@ -1,0 +1,26 @@
+$kind: http-request
+url: "{{keycloak_url}}/realms/gimnasio/protocol/openid-connect/token"
+method: POST
+headers:
+  Content-Type: application/x-www-form-urlencoded
+body:
+  type: urlencoded
+  content:
+    grant_type: password
+    client_id: gimnasio-gateway
+    username: admin
+    password: wrong_password_999
+auth:
+  type: noauth
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Rechaza con 400 o 401 credenciales incorrectas", function () {
+          pm.expect(pm.response.code).to.be.oneOf([400, 401]);
+      });
+      pm.test("Respuesta contiene error invalid_grant", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData.error).to.eql("invalid_grant");
+      });
+    language: text/javascript
+order: 4000

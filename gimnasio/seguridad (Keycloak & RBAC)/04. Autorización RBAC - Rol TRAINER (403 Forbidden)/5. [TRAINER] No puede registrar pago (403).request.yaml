@@ -1,0 +1,25 @@
+$kind: http-request
+url: "{{api_url}}/pagos"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "miembroId": 1,
+      "monto": 50000,
+      "metodoPago": "EFECTIVO"
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{trainer_token}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("TRAINER no autorizado a solicitar pago -> 403 Forbidden", function () {
+          pm.response.to.have.status(403);
+      });
+    language: text/javascript
+order: 5000

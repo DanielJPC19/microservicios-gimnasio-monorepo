@@ -123,6 +123,8 @@ Cada microservicio expone documentación interactiva:
 
 ## Pruebas de Seguridad (Keycloak + Roles JWT)
 
+> Ver la guía completa con matriz de permisos RBAC y suite automatizada de Postman/Newman en [`doc/SECURITY_TESTING.md`](doc/SECURITY_TESTING.md).
+
 ```bash
 # 1. Obtener tokens para cada rol
 ADMIN_TOKEN=$(curl -s -X POST http://localhost:8180/realms/gimnasio/protocol/openid-connect/token \

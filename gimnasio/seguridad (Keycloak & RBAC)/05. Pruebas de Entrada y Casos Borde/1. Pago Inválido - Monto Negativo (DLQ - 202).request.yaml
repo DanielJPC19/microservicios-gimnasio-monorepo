@@ -1,0 +1,25 @@
+$kind: http-request
+url: "{{api_url}}/pagos"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "miembroId": 1,
+      "monto": -5000,
+      "metodoPago": "EFECTIVO"
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{admin_token}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Pago negativo aceptado para envío asíncrono a DLQ -> 202 Accepted", function () {
+          pm.response.to.have.status(202);
+      });
+    language: text/javascript
+order: 1000

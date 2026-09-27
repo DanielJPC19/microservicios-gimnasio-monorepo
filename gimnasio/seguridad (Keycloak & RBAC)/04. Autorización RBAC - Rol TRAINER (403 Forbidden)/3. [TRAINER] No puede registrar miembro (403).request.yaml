@@ -1,0 +1,25 @@
+$kind: http-request
+url: "{{api_url}}/miembros"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "nombre": "Miembro No Autorizado",
+      "email": { "email": "trainer_intento@email.com" },
+      "fechaInscripcion": { "fechaInscripcion": "2026-09-01" }
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{trainer_token}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("TRAINER no autorizado a registrar miembro -> 403 Forbidden", function () {
+          pm.response.to.have.status(403);
+      });
+    language: text/javascript
+order: 3000

@@ -2,16 +2,1461 @@
   "info": {
     "_postman_id": "7e3420e5-a38b-4815-8a3e-2454bfcb8cd8",
     "name": "gimnasio",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "_exporter_id": "43993555",
-    "_collection_link": "https://go.postman.co/collection/43993555-7e3420e5-a38b-4815-8a3e-2454bfcb8cd8?source=collection_link"
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
+    {
+      "name": "seguridad (Keycloak & RBAC)",
+      "item": [
+        {
+          "name": "01. Obtención de Tokens (AuthN)",
+          "item": [
+            {
+              "name": "1. Login Admin (ROLE_ADMIN)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 200 OK\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "pm.test(\"Obtiene access_token de ADMIN\", function () {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.expect(jsonData.access_token).to.be.a('string');",
+                      "    pm.collectionVariables.set('admin_token', jsonData.access_token);",
+                      "    pm.collectionVariables.set('token', jsonData.access_token);",
+                      "    if (pm.environment.name) {",
+                      "        pm.environment.set('admin_token', jsonData.access_token);",
+                      "        pm.environment.set('token', jsonData.access_token);",
+                      "    }",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/x-www-form-urlencoded"
+                  }
+                ],
+                "body": {
+                  "mode": "urlencoded",
+                  "urlencoded": [
+                    {
+                      "key": "grant_type",
+                      "value": "password",
+                      "type": "text"
+                    },
+                    {
+                      "key": "client_id",
+                      "value": "gimnasio-gateway",
+                      "type": "text"
+                    },
+                    {
+                      "key": "username",
+                      "value": "admin",
+                      "type": "text"
+                    },
+                    {
+                      "key": "password",
+                      "value": "admin123",
+                      "type": "text"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{keycloak_url}}/realms/gimnasio/protocol/openid-connect/token",
+                  "host": [
+                    "{{keycloak_url}}"
+                  ],
+                  "path": [
+                    "realms",
+                    "gimnasio",
+                    "protocol",
+                    "openid-connect",
+                    "token"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "2. Login Entrenador (ROLE_TRAINER)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 200 OK\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "pm.test(\"Obtiene access_token de TRAINER\", function () {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.expect(jsonData.access_token).to.be.a('string');",
+                      "    pm.collectionVariables.set('trainer_token', jsonData.access_token);",
+                      "    if (pm.environment.name) {",
+                      "        pm.environment.set('trainer_token', jsonData.access_token);",
+                      "    }",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/x-www-form-urlencoded"
+                  }
+                ],
+                "body": {
+                  "mode": "urlencoded",
+                  "urlencoded": [
+                    {
+                      "key": "grant_type",
+                      "value": "password",
+                      "type": "text"
+                    },
+                    {
+                      "key": "client_id",
+                      "value": "gimnasio-gateway",
+                      "type": "text"
+                    },
+                    {
+                      "key": "username",
+                      "value": "entrenador1",
+                      "type": "text"
+                    },
+                    {
+                      "key": "password",
+                      "value": "trainer123",
+                      "type": "text"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{keycloak_url}}/realms/gimnasio/protocol/openid-connect/token",
+                  "host": [
+                    "{{keycloak_url}}"
+                  ],
+                  "path": [
+                    "realms",
+                    "gimnasio",
+                    "protocol",
+                    "openid-connect",
+                    "token"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "3. Login Miembro (ROLE_MEMBER)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 200 OK\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "pm.test(\"Obtiene access_token de MEMBER\", function () {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.expect(jsonData.access_token).to.be.a('string');",
+                      "    pm.collectionVariables.set('member_token', jsonData.access_token);",
+                      "    if (pm.environment.name) {",
+                      "        pm.environment.set('member_token', jsonData.access_token);",
+                      "    }",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/x-www-form-urlencoded"
+                  }
+                ],
+                "body": {
+                  "mode": "urlencoded",
+                  "urlencoded": [
+                    {
+                      "key": "grant_type",
+                      "value": "password",
+                      "type": "text"
+                    },
+                    {
+                      "key": "client_id",
+                      "value": "gimnasio-gateway",
+                      "type": "text"
+                    },
+                    {
+                      "key": "username",
+                      "value": "miembro1",
+                      "type": "text"
+                    },
+                    {
+                      "key": "password",
+                      "value": "member123",
+                      "type": "text"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{keycloak_url}}/realms/gimnasio/protocol/openid-connect/token",
+                  "host": [
+                    "{{keycloak_url}}"
+                  ],
+                  "path": [
+                    "realms",
+                    "gimnasio",
+                    "protocol",
+                    "openid-connect",
+                    "token"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "4. Login Fallido - Credenciales Inválidas",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Rechaza con 400 o 401 credenciales incorrectas\", function () {",
+                      "    pm.expect(pm.response.code).to.be.oneOf([400, 401]);",
+                      "});",
+                      "pm.test(\"Respuesta contiene error invalid_grant\", function () {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.expect(jsonData.error).to.eql(\"invalid_grant\");",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/x-www-form-urlencoded"
+                  }
+                ],
+                "body": {
+                  "mode": "urlencoded",
+                  "urlencoded": [
+                    {
+                      "key": "grant_type",
+                      "value": "password",
+                      "type": "text"
+                    },
+                    {
+                      "key": "client_id",
+                      "value": "gimnasio-gateway",
+                      "type": "text"
+                    },
+                    {
+                      "key": "username",
+                      "value": "admin",
+                      "type": "text"
+                    },
+                    {
+                      "key": "password",
+                      "value": "wrong_password_999",
+                      "type": "text"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{keycloak_url}}/realms/gimnasio/protocol/openid-connect/token",
+                  "host": [
+                    "{{keycloak_url}}"
+                  ],
+                  "path": [
+                    "realms",
+                    "gimnasio",
+                    "protocol",
+                    "openid-connect",
+                    "token"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "02. Autenticación (401 Unauthorized)",
+          "item": [
+            {
+              "name": "1. Petición sin Header Authorization (401)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 401 Unauthorized\", function () {",
+                      "    pm.response.to.have.status(401);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{api_url}}/clases",
+                  "host": [
+                    "{{api_url}}"
+                  ],
+                  "path": [
+                    "clases"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "2. Petición con Token Corrupto o Inválido (401)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 401 Unauthorized\", function () {",
+                      "    pm.response.to.have.status(401);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "token.invalido.123",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{api_url}}/clases",
+                  "host": [
+                    "{{api_url}}"
+                  ],
+                  "path": [
+                    "clases"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "3. Endpoint Público sin Token (200 OK)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 200 OK para ruta pública\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "pm.test(\"Cuerpo contiene API is working\", function () {",
+                      "    pm.expect(pm.response.text()).to.include(\"API is working\");",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{api_url}}",
+                  "host": [
+                    "{{api_url}}"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "03. Autorización RBAC - Rol MEMBER (403 Forbidden)",
+          "item": [
+            {
+              "name": "1. [MEMBER] No puede listar miembros (403)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"MEMBER no autorizado a listar miembros -> 403 Forbidden\", function () {",
+                      "    pm.response.to.have.status(403);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{member_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{api_url}}/miembros",
+                  "host": [
+                    "{{api_url}}"
+                  ],
+                  "path": [
+                    "miembros"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "2. [MEMBER] No puede programar clase (403)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"MEMBER no autorizado a programar clase -> 403 Forbidden\", function () {",
+                      "    pm.response.to.have.status(403);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{member_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"nombre\": \"Clase No Autorizada\",\n  \"horario\": { \"horario\": \"2026-09-01T10:00:00\" },\n  \"capacidad\": { \"capacidad\": 20 },\n  \"entrenadorId\": 1\n}"
+                },
+                "url": {
+                  "raw": "{{api_url}}/clases",
+                  "host": [
+                    "{{api_url}}"
+                  ],
+                  "path": [
+                    "clases"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "3. [MEMBER] No puede crear entrenador (403)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"MEMBER no autorizado a crear entrenador -> 403 Forbidden\", function () {",
+                      "    pm.response.to.have.status(403);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{member_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"nombre\": \"Pedro Gómez\",\n  \"especialidad\": \"Crossfit\"\n}"
+                },
+                "url": {
+                  "raw": "{{api_url}}/entrenadores",
+                  "host": [
+                    "{{api_url}}"
+                  ],
+                  "path": [
+                    "entrenadores"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "4. [MEMBER] No puede registrar equipo (403)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"MEMBER no autorizado a registrar equipo -> 403 Forbidden\", function () {",
+                      "    pm.response.to.have.status(403);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{member_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"nombre\": \"Pesa Rusa 16kg\",\n  \"descripcion\": \"Kettlebell\",\n  \"cantidad\": 5\n}"
+                },
+                "url": {
+                  "raw": "{{api_url}}/equipos",
+                  "host": [
+                    "{{api_url}}"
+                  ],
+                  "path": [
+                    "equipos"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "5. [MEMBER] No puede reportar avería (403)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"MEMBER no autorizado a reportar avería -> 403 Forbidden\", function () {",
+                      "    pm.response.to.have.status(403);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{member_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"motivo\": \"Avería intento miembro\",\n  \"gravedad\": \"MEDIA\"\n}"
+                },
+                "url": {
+                  "raw": "{{api_url}}/equipos/1/reportar-averia",
+                  "host": [
+                    "{{api_url}}"
+                  ],
+                  "path": [
+                    "equipos",
+                    "1",
+                    "reportar-averia"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "6. [MEMBER] No puede listar pagos (403)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"MEMBER no autorizado a listar pagos -> 403 Forbidden\", function () {",
+                      "    pm.response.to.have.status(403);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{member_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{api_url}}/pagos",
+                  "host": [
+                    "{{api_url}}"
+                  ],
+                  "path": [
+                    "pagos"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "7. [MEMBER] No puede ver pagos fallidos DLQ (403)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"MEMBER no autorizado a ver pagos fallidos -> 403 Forbidden\", function () {",
+                      "    pm.response.to.have.status(403);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{member_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{api_url}}/pagos/fallidos",
+                  "host": [
+                    "{{api_url}}"
+                  ],
+                  "path": [
+                    "pagos",
+                    "fallidos"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "8. [MEMBER] No puede ver estado recuperación Kafka (403)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"MEMBER no autorizado a ver estado de recuperación -> 403 Forbidden\", function () {",
+                      "    pm.response.to.have.status(403);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{member_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{api_url}}/monitoreo/recuperacion/estado",
+                  "host": [
+                    "{{api_url}}"
+                  ],
+                  "path": [
+                    "monitoreo",
+                    "recuperacion",
+                    "estado"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "04. Autorización RBAC - Rol TRAINER (403 Forbidden)",
+          "item": [
+            {
+              "name": "1. [TRAINER] No puede crear entrenador (403)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"TRAINER no autorizado a crear entrenador -> 403 Forbidden\", function () {",
+                      "    pm.response.to.have.status(403);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{trainer_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"nombre\": \"Segundo Entrenador\",\n  \"especialidad\": \"Spinning\"\n}"
+                },
+                "url": {
+                  "raw": "{{api_url}}/entrenadores",
+                  "host": [
+                    "{{api_url}}"
+                  ],
+                  "path": [
+                    "entrenadores"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "2. [TRAINER] No puede crear equipo (403)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"TRAINER no autorizado a crear equipo -> 403 Forbidden\", function () {",
+                      "    pm.response.to.have.status(403);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{trainer_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"nombre\": \"Mancuernas 10kg\",\n  \"descripcion\": \"Pesas\",\n  \"cantidad\": 10\n}"
+                },
+                "url": {
+                  "raw": "{{api_url}}/equipos",
+                  "host": [
+                    "{{api_url}}"
+                  ],
+                  "path": [
+                    "equipos"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "3. [TRAINER] No puede registrar miembro (403)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"TRAINER no autorizado a registrar miembro -> 403 Forbidden\", function () {",
+                      "    pm.response.to.have.status(403);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{trainer_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"nombre\": \"Miembro No Autorizado\",\n  \"email\": { \"email\": \"trainer_intento@email.com\" },\n  \"fechaInscripcion\": { \"fechaInscripcion\": \"2026-09-01\" }\n}"
+                },
+                "url": {
+                  "raw": "{{api_url}}/miembros",
+                  "host": [
+                    "{{api_url}}"
+                  ],
+                  "path": [
+                    "miembros"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "4. [TRAINER] No puede listar pagos (403)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"TRAINER no autorizado a listar pagos -> 403 Forbidden\", function () {",
+                      "    pm.response.to.have.status(403);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{trainer_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{api_url}}/pagos",
+                  "host": [
+                    "{{api_url}}"
+                  ],
+                  "path": [
+                    "pagos"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "5. [TRAINER] No puede registrar pago (403)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"TRAINER no autorizado a solicitar pago -> 403 Forbidden\", function () {",
+                      "    pm.response.to.have.status(403);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{trainer_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"miembroId\": 1,\n  \"monto\": 50000,\n  \"metodoPago\": \"EFECTIVO\"\n}"
+                },
+                "url": {
+                  "raw": "{{api_url}}/pagos",
+                  "host": [
+                    "{{api_url}}"
+                  ],
+                  "path": [
+                    "pagos"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "6. [TRAINER] No puede ver estado recuperación Kafka (403)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"TRAINER no autorizado a ver estado recuperación -> 403 Forbidden\", function () {",
+                      "    pm.response.to.have.status(403);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{trainer_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{api_url}}/monitoreo/recuperacion/estado",
+                  "host": [
+                    "{{api_url}}"
+                  ],
+                  "path": [
+                    "monitoreo",
+                    "recuperacion",
+                    "estado"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "04. Permisos Válidos por Rol (200 / 202 OK)",
+          "item": [
+            {
+              "name": "1. [ADMIN] Listar Pagos (200 OK)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"ADMIN accede a listar pagos -> 200 OK\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{api_url}}/pagos",
+                  "host": [
+                    "{{api_url}}"
+                  ],
+                  "path": [
+                    "pagos"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "2. [ADMIN] Consultar Recuperación Kafka (200 OK)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"ADMIN accede a recuperación Kafka -> 200 OK\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{api_url}}/monitoreo/recuperacion/estado",
+                  "host": [
+                    "{{api_url}}"
+                  ],
+                  "path": [
+                    "monitoreo",
+                    "recuperacion",
+                    "estado"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "3. [TRAINER] Listar Miembros Permitido (200 OK)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"TRAINER accede a listar miembros -> 200 OK\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{trainer_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{api_url}}/miembros",
+                  "host": [
+                    "{{api_url}}"
+                  ],
+                  "path": [
+                    "miembros"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "4. [TRAINER] Programar Clase Permitido (200 OK)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"TRAINER puede programar clase -> 200 OK\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{trainer_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"nombre\": \"Spinning Trainer\",\n  \"horario\": { \"horario\": \"2026-09-02T18:00:00\" },\n  \"capacidad\": { \"capacidad\": 15 },\n  \"entrenadorId\": 1\n}"
+                },
+                "url": {
+                  "raw": "{{api_url}}/clases",
+                  "host": [
+                    "{{api_url}}"
+                  ],
+                  "path": [
+                    "clases"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "5. [MEMBER] Listar Clases Permitido (200 OK)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"MEMBER accede a listar clases -> 200 OK\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{member_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{api_url}}/clases",
+                  "host": [
+                    "{{api_url}}"
+                  ],
+                  "path": [
+                    "clases"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "6. [MEMBER] Solicitar Pago Permitido (202 Accepted)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"MEMBER puede solicitar pago -> 202 Accepted\", function () {",
+                      "    pm.response.to.have.status(202);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{member_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"miembroId\": 1,\n  \"monto\": 120000,\n  \"metodoPago\": \"TARJETA\"\n}"
+                },
+                "url": {
+                  "raw": "{{api_url}}/pagos",
+                  "host": [
+                    "{{api_url}}"
+                  ],
+                  "path": [
+                    "pagos"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "05. Pruebas de Entrada y Casos Borde",
+          "item": [
+            {
+              "name": "1. Pago Inválido - Monto Negativo (DLQ - 202)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Pago negativo aceptado para envío asíncrono a DLQ -> 202 Accepted\", function () {",
+                      "    pm.response.to.have.status(202);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"miembroId\": 1,\n  \"monto\": -5000,\n  \"metodoPago\": \"EFECTIVO\"\n}"
+                },
+                "url": {
+                  "raw": "{{api_url}}/pagos",
+                  "host": [
+                    "{{api_url}}"
+                  ],
+                  "path": [
+                    "pagos"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "2. Body JSON Inválido (400 Bad Request)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"JSON malformado es rechazado por el servidor (400 o 500)\", function () {",
+                      "    pm.expect(pm.response.code).to.be.oneOf([400, 500]);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"nombre\": \"Json Incompleto"
+                },
+                "url": {
+                  "raw": "{{api_url}}/entrenadores",
+                  "host": [
+                    "{{api_url}}"
+                  ],
+                  "path": [
+                    "entrenadores"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
     {
       "name": "clases",
       "item": [
         {
           "name": "clases",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -29,6 +1474,17 @@
         },
         {
           "name": "clases POST",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -55,26 +1511,60 @@
         },
         {
           "name": "clases ingreso (Kafka)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [],
             "url": {
               "raw": "{{api_url}}/clases/1/ingreso",
-              "host": ["{{api_url}}"],
-              "path": ["clases", "1", "ingreso"]
+              "host": [
+                "{{api_url}}"
+              ],
+              "path": [
+                "clases",
+                "1",
+                "ingreso"
+              ]
             }
           },
           "response": []
         },
         {
           "name": "clases salida (Kafka)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [],
             "url": {
               "raw": "{{api_url}}/clases/1/salida",
-              "host": ["{{api_url}}"],
-              "path": ["clases", "1", "salida"]
+              "host": [
+                "{{api_url}}"
+              ],
+              "path": [
+                "clases",
+                "1",
+                "salida"
+              ]
             }
           },
           "response": []
@@ -86,6 +1576,17 @@
       "item": [
         {
           "name": "entrenadores",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -103,6 +1604,17 @@
         },
         {
           "name": "entrenadores by id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 or 404\", function () { pm.expect(pm.response.code).to.be.oneOf([200, 404]); });"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -121,6 +1633,17 @@
         },
         {
           "name": "entrenadores POST",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -152,6 +1675,17 @@
       "item": [
         {
           "name": "miembros",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -169,6 +1703,17 @@
         },
         {
           "name": "miembros POST",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -195,6 +1740,17 @@
         },
         {
           "name": "miembros registrar entrenamiento (Kafka)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -209,8 +1765,14 @@
             },
             "url": {
               "raw": "{{api_url}}/miembros/1/entrenamientos",
-              "host": ["{{api_url}}"],
-              "path": ["miembros", "1", "entrenamientos"]
+              "host": [
+                "{{api_url}}"
+              ],
+              "path": [
+                "miembros",
+                "1",
+                "entrenamientos"
+              ]
             }
           },
           "response": []
@@ -222,6 +1784,17 @@
       "item": [
         {
           "name": "equipos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -239,6 +1812,17 @@
         },
         {
           "name": "equipos POST",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -265,6 +1849,17 @@
         },
         {
           "name": "equipos reportar averia (Pub/Sub Fanout)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 or 404\", function () { pm.expect(pm.response.code).to.be.oneOf([200, 404]); });"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -298,6 +1893,17 @@
       "item": [
         {
           "name": "pagos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -315,6 +1921,17 @@
         },
         {
           "name": "pagos fallidos (DLQ)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -333,6 +1950,17 @@
         },
         {
           "name": "pagos POST (aprobado)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 202 Accepted\", function () { pm.response.to.have.status(202); });"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -359,6 +1987,17 @@
         },
         {
           "name": "pagos POST (rechazado: 3 reintentos -> DLQ)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 202 Accepted\", function () { pm.response.to.have.status(202); });"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -385,6 +2024,17 @@
         },
         {
           "name": "pagos POST (inválido: directo a DLQ)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 202 Accepted\", function () { pm.response.to.have.status(202); });"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -416,198 +2066,90 @@
       "item": [
         {
           "name": "ocupacion actual",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
             "url": {
               "raw": "{{api_url}}/monitoreo/ocupacion",
-              "host": ["{{api_url}}"],
-              "path": ["monitoreo", "ocupacion"]
+              "host": [
+                "{{api_url}}"
+              ],
+              "path": [
+                "monitoreo",
+                "ocupacion"
+              ]
             }
           },
           "response": []
         },
         {
           "name": "resumen semanal entrenamiento (Kafka Streams)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
             "url": {
               "raw": "{{api_url}}/monitoreo/entrenamiento/1/resumen",
-              "host": ["{{api_url}}"],
-              "path": ["monitoreo", "entrenamiento", "1", "resumen"]
+              "host": [
+                "{{api_url}}"
+              ],
+              "path": [
+                "monitoreo",
+                "entrenamiento",
+                "1",
+                "resumen"
+              ]
             }
           },
           "response": []
         },
         {
           "name": "estado recuperacion checkpoints (solo ADMIN)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
             "url": {
               "raw": "{{api_url}}/monitoreo/recuperacion/estado",
-              "host": ["{{api_url}}"],
-              "path": ["monitoreo", "recuperacion", "estado"]
-            }
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "seguridad (Keycloak)",
-      "item": [
-        {
-          "name": "1. Login Admin (ROLE_ADMIN)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.response.code === 200) {",
-                  "    var jsonData = pm.response.json();",
-                  "    pm.collectionVariables.set('token', jsonData.access_token);",
-                  "    if (pm.environment.name) { pm.environment.set('token', jsonData.access_token); }",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "auth": {
-              "type": "noauth"
-            },
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/x-www-form-urlencoded"
-              }
-            ],
-            "body": {
-              "mode": "urlencoded",
-              "urlencoded": [
-                { "key": "grant_type", "value": "password", "type": "text" },
-                { "key": "client_id", "value": "gimnasio-gateway", "type": "text" },
-                { "key": "username", "value": "admin", "type": "text" },
-                { "key": "password", "value": "admin123", "type": "text" }
+              "host": [
+                "{{api_url}}"
+              ],
+              "path": [
+                "monitoreo",
+                "recuperacion",
+                "estado"
               ]
-            },
-            "url": {
-              "raw": "{{keycloak_url}}/realms/gimnasio/protocol/openid-connect/token",
-              "host": ["{{keycloak_url}}"],
-              "path": ["realms", "gimnasio", "protocol", "openid-connect", "token"]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "2. Login Entrenador (ROLE_TRAINER)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.response.code === 200) {",
-                  "    var jsonData = pm.response.json();",
-                  "    pm.collectionVariables.set('token', jsonData.access_token);",
-                  "    if (pm.environment.name) { pm.environment.set('token', jsonData.access_token); }",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "auth": {
-              "type": "noauth"
-            },
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/x-www-form-urlencoded"
-              }
-            ],
-            "body": {
-              "mode": "urlencoded",
-              "urlencoded": [
-                { "key": "grant_type", "value": "password", "type": "text" },
-                { "key": "client_id", "value": "gimnasio-gateway", "type": "text" },
-                { "key": "username", "value": "entrenador1", "type": "text" },
-                { "key": "password", "value": "trainer123", "type": "text" }
-              ]
-            },
-            "url": {
-              "raw": "{{keycloak_url}}/realms/gimnasio/protocol/openid-connect/token",
-              "host": ["{{keycloak_url}}"],
-              "path": ["realms", "gimnasio", "protocol", "openid-connect", "token"]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "3. Login Miembro (ROLE_MEMBER)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.response.code === 200) {",
-                  "    var jsonData = pm.response.json();",
-                  "    pm.collectionVariables.set('token', jsonData.access_token);",
-                  "    if (pm.environment.name) { pm.environment.set('token', jsonData.access_token); }",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "auth": {
-              "type": "noauth"
-            },
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/x-www-form-urlencoded"
-              }
-            ],
-            "body": {
-              "mode": "urlencoded",
-              "urlencoded": [
-                { "key": "grant_type", "value": "password", "type": "text" },
-                { "key": "client_id", "value": "gimnasio-gateway", "type": "text" },
-                { "key": "username", "value": "miembro1", "type": "text" },
-                { "key": "password", "value": "member123", "type": "text" }
-              ]
-            },
-            "url": {
-              "raw": "{{keycloak_url}}/realms/gimnasio/protocol/openid-connect/token",
-              "host": ["{{keycloak_url}}"],
-              "path": ["realms", "gimnasio", "protocol", "openid-connect", "token"]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "4. Prueba Token Inválido (401 Unauthorized)",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                { "key": "token", "value": "token.invalido.123", "type": "string" }
-              ]
-            },
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{api_url}}/clases",
-              "host": ["{{api_url}}"],
-              "path": ["clases"]
             }
           },
           "response": []
@@ -616,6 +2158,18 @@
     },
     {
       "name": "api",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"Response body is API is working\", function () { pm.expect(pm.response.text()).to.include(\"API is working\"); });"
+            ]
+          }
+        }
+      ],
       "request": {
         "auth": {
           "type": "noauth"
@@ -677,6 +2231,18 @@
     },
     {
       "key": "token",
+      "value": ""
+    },
+    {
+      "key": "admin_token",
+      "value": ""
+    },
+    {
+      "key": "trainer_token",
+      "value": ""
+    },
+    {
+      "key": "member_token",
       "value": ""
     }
   ]

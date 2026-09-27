@@ -1,0 +1,30 @@
+$kind: http-request
+url: "{{keycloak_url}}/realms/gimnasio/protocol/openid-connect/token"
+method: POST
+headers:
+  Content-Type: application/x-www-form-urlencoded
+body:
+  type: urlencoded
+  content:
+    grant_type: password
+    client_id: gimnasio-gateway
+    username: miembro1
+    password: member123
+auth:
+  type: noauth
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200 OK", function () {
+          pm.response.to.have.status(200);
+      });
+      pm.test("Obtiene access_token de MEMBER", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData.access_token).to.be.a('string');
+          pm.collectionVariables.set('member_token', jsonData.access_token);
+          if (pm.environment.name) {
+              pm.environment.set('member_token', jsonData.access_token);
+          }
+      });
+    language: text/javascript
+order: 3000

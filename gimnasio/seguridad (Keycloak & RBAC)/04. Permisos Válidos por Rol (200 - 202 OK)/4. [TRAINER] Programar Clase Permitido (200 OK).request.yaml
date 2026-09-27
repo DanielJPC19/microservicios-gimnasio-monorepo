@@ -1,0 +1,26 @@
+$kind: http-request
+url: "{{api_url}}/clases"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "nombre": "Spinning Trainer",
+      "horario": { "horario": "2026-09-02T18:00:00" },
+      "capacidad": { "capacidad": 15 },
+      "entrenadorId": 1
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{trainer_token}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("TRAINER puede programar clase -> 200 OK", function () {
+          pm.response.to.have.status(200);
+      });
+    language: text/javascript
+order: 4000

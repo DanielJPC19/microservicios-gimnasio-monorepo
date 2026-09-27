@@ -1,0 +1,24 @@
+$kind: http-request
+url: "{{api_url}}/entrenadores"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "nombre": "Segundo Entrenador",
+      "especialidad": "Spinning"
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{trainer_token}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("TRAINER no autorizado a crear entrenador -> 403 Forbidden", function () {
+          pm.response.to.have.status(403);
+      });
+    language: text/javascript
+order: 1000

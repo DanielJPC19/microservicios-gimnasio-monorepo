@@ -1,0 +1,15 @@
+$kind: collection
+description: ""
+variables:
+  api_url: http://localhost:8080/api/gimnasio
+  keycloak_url: http://localhost:8180
+  token: ""
+  admin_token: ""
+  trainer_token: ""
+  member_token: ""
+auth:
+  - id: ec3f560a-2362-472f-84d1-959b8421d608
+    type: bearer
+    name: bearer auth
+    credentials:
+      token: "{{token}}"

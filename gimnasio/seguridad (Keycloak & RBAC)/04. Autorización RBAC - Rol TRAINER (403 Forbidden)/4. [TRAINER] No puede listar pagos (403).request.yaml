@@ -1,0 +1,15 @@
+$kind: http-request
+url: "{{api_url}}/pagos"
+method: GET
+auth:
+  type: bearer
+  credentials:
+    token: "{{trainer_token}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("TRAINER no autorizado a listar pagos -> 403 Forbidden", function () {
+          pm.response.to.have.status(403);
+      });
+    language: text/javascript
+order: 4000

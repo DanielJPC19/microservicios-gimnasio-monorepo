@@ -1,0 +1,15 @@
+$kind: http-request
+url: "{{api_url}}/miembros"
+method: GET
+auth:
+  type: bearer
+  credentials:
+    token: "{{member_token}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("MEMBER no autorizado a listar miembros -> 403 Forbidden", function () {
+          pm.response.to.have.status(403);
+      });
+    language: text/javascript
+order: 1000

@@ -1,0 +1,16 @@
+# Use this workspace to collaborate
+workspace:
+  id: ""
+
+localResources:
+  collections:
+    - ../gimnasio.postman_collection.json
+    - ../gimnasio
+  environments:
+    - ../Gimnasio Local (Docker).environment.yaml
+
+# Each entry here maps a local resource to one or more corresponding objects in Postman Cloud
+
+cloudResources:
+  collections:
+    ../gimnasio: 7e3420e5-a38b-4815-8a3e-2454bfcb8cd8

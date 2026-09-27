@@ -1,0 +1,13 @@
+$kind: http-request
+url: "{{api_url}}/clases"
+method: GET
+auth:
+  type: noauth
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 401 Unauthorized", function () {
+          pm.response.to.have.status(401);
+      });
+    language: text/javascript
+order: 1000
