@@ -1,8 +1,10 @@
 package co.analisys.gimnasio.service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -18,13 +20,19 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.server.ResponseStatusException;
 
+import co.analisys.gimnasio.config.RabbitMQConfig;
+import co.analisys.gimnasio.dto.CambioHorarioClaseRequest;
 import co.analisys.gimnasio.dto.ClaseResponse;
 import co.analisys.gimnasio.dto.EntrenadorDTO;
+import co.analisys.gimnasio.dto.HorarioClaseCambiadoEvent;
 import co.analisys.gimnasio.model.Clase;
+import co.analisys.gimnasio.model.Horario;
 import co.analisys.gimnasio.repository.ClaseRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ClaseService {
@@ -32,6 +40,7 @@ public class ClaseService {
     private final ClaseRepository claseRepository;
     private final RestTemplate restTemplate;
     private final OcupacionClaseProducer ocupacionClaseProducer;
+    private final RabbitTemplate rabbitTemplate;
 
     @Value("${entrenador.service.url}")
     private String entrenadorServiceUrl;
@@ -45,6 +54,38 @@ public class ClaseService {
                 guardada.getOcupacionActual(),
                 guardada.getCapacidad().getCapacidad());
         return guardada;
+    }
+
+    public Clase cambiarHorario(Long claseId, CambioHorarioClaseRequest request) {
+        if (request == null || request.getNuevoHorario() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Debe indicar el nuevoHorario de la clase");
+        }
+        Clase clase = claseRepository.findById(claseId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Clase " + claseId + " no encontrada"));
+
+        LocalDateTime horarioAnterior = clase.getHorario() != null ? clase.getHorario().getHorario() : null;
+        Horario nuevoHorarioObj = clase.getHorario() != null
+                ? clase.getHorario().cambiarHorario(new Horario(request.getNuevoHorario()))
+                : new Horario(request.getNuevoHorario());
+        clase.setHorario(nuevoHorarioObj);
+        Clase actualizada = claseRepository.save(clase);
+
+        try {
+            HorarioClaseCambiadoEvent evento = new HorarioClaseCambiadoEvent(
+                    actualizada.getId(),
+                    actualizada.getNombre(),
+                    horarioAnterior,
+                    request.getNuevoHorario(),
+                    request.getMotivo() != null ? request.getMotivo() : "Reprogramación general",
+                    LocalDateTime.now()
+            );
+            rabbitTemplate.convertAndSend(RabbitMQConfig.CLASE_HORARIO_EXCHANGE, "", evento);
+            log.info("Evento Fanout HorarioClaseCambiado publicado exitosamente en RabbitMQ: {}", evento);
+        } catch (Exception e) {
+            log.error("Error al publicar evento HorarioClaseCambiado en RabbitMQ: {}", e.getMessage());
+        }
+
+        return actualizada;
     }
 
     @Transactional

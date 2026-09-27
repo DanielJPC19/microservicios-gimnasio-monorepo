@@ -3,6 +3,7 @@ package co.analisys.gimnasio.controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import co.analisys.gimnasio.dto.CambioHorarioClaseRequest;
 import co.analisys.gimnasio.dto.ClaseResponse;
 import co.analisys.gimnasio.model.Clase;
 import co.analisys.gimnasio.service.ClaseService;
@@ -17,6 +18,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
 @RestController
@@ -43,6 +45,15 @@ public class ClaseController {
     @ApiResponse(responseCode = "401", description = "Token JWT no valido o ausente")
     public List<ClaseResponse> obtenerTodasClases() {
         return claseService.obtenerTodasClases();
+    }
+
+    @PutMapping("/{id}/horario")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TRAINER')")
+    @Operation(summary = "Cambiar horario de clase", description = "Actualiza el horario de una clase y difunde el evento via RabbitMQ FanoutExchange (app movil, emailing y auditoria)")
+    @ApiResponse(responseCode = "200", description = "Horario actualizado y evento difundido")
+    @ApiResponse(responseCode = "404", description = "Clase no encontrada")
+    public Clase cambiarHorario(@PathVariable Long id, @RequestBody CambioHorarioClaseRequest request) {
+        return claseService.cambiarHorario(id, request);
     }
 
     @PostMapping("/{id}/ingreso")

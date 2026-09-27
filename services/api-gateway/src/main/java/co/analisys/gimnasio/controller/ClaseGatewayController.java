@@ -16,6 +16,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
 @RestController
@@ -53,6 +54,22 @@ public class ClaseGatewayController {
                 .uri(claseServiceUrl + "/api/gimnasio/clases")
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .body(clase)
+                .retrieve()
+                .body(String.class);
+
+        return ResponseEntity.ok(respuesta);
+    }
+
+    @PutMapping("/{id}/horario")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TRAINER')")
+    @Operation(summary = "Cambiar horario de clase", description = "Actualiza el horario de una clase y difunde evento por RabbitMQ FanoutExchange")
+    @ApiResponse(responseCode = "200", description = "Horario actualizado y evento publicado")
+    @ApiResponse(responseCode = "404", description = "Clase no encontrada")
+    public ResponseEntity<String> cambiarHorario(@PathVariable Long id, @RequestBody String cambioHorario) {
+        String respuesta = restClient.put()
+                .uri(claseServiceUrl + "/api/gimnasio/clases/" + id + "/horario")
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .body(cambioHorario)
                 .retrieve()
                 .body(String.class);
 
