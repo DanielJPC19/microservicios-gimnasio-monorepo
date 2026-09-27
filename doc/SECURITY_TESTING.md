@@ -39,6 +39,7 @@ El sistema implementa seguridad perimetral y distribuida basada en **OAuth2 y Op
 | `/api/gimnasio` | GET | **Público** | Ninguno | Permite acceso (200 OK) |
 | `/api/gimnasio/clases` | GET | `ADMIN`, `TRAINER`, `MEMBER` | Ninguno (autenticado) | 401 |
 | `/api/gimnasio/clases` | POST | `ADMIN`, `TRAINER` | `MEMBER` | 401 |
+| `/api/gimnasio/clases/{id}/horario` | PUT | `ADMIN`, `TRAINER` | `MEMBER` | 401 |
 | `/api/gimnasio/clases/{id}/ingreso` | POST | `ADMIN`, `TRAINER`, `MEMBER` | Ninguno (autenticado) | 401 |
 | `/api/gimnasio/clases/{id}/salida` | POST | `ADMIN`, `TRAINER`, `MEMBER` | Ninguno (autenticado) | 401 |
 | `/api/gimnasio/entrenadores` | GET | `ADMIN`, `TRAINER`, `MEMBER` | Ninguno (autenticado) | 401 |
@@ -144,7 +145,7 @@ curl -i -H "Authorization: Bearer $MEMBER_TOKEN" http://localhost:8080/api/gimna
 # Miembro intentando programar clase (solo ADMIN y TRAINER) -> 403 Forbidden
 curl -i -X POST http://localhost:8080/api/gimnasio/clases \
   -H "Authorization: Bearer $MEMBER_TOKEN" -H "Content-Type: application/json" \
-  -d '{"nombre": "Yoga Ilegal", "horario": {"horario": "2026-09-01T10:00:00"}, "capacidad": {"capacidad": 20}, "entrenadorId": 1}'
+  -d '{"nombre": "Yoga Ilegal", "horario": "2026-09-01T10:00:00", "capacidad": 20, "entrenadorId": 1}'
 
 # Entrenador intentando crear un nuevo entrenador (solo ADMIN) -> 403 Forbidden
 curl -i -X POST http://localhost:8080/api/gimnasio/entrenadores \

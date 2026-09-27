@@ -7,20 +7,20 @@ body:
   type: text
   content: |-
     {
-      "nombre": "Clase No Autorizada",
+      "nombre": "Yoga Capacidad Negativa",
       "horario": "2026-09-01T10:00:00",
-      "capacidad": 20,
+      "capacidad": -5,
       "entrenadorId": 1
     }
 auth:
   type: bearer
   credentials:
-    token: "{{member_token}}"
+    token: "{{admin_token}}"
 scripts:
   - type: afterResponse
     code: |-
-      pm.test("MEMBER no autorizado a programar clase -> 403 Forbidden", function () {
-          pm.response.to.have.status(403);
+      pm.test("Capacidad <= 0 viola invariante de VO Capacidad -> 400 Bad Request", function () {
+          pm.response.to.have.status(400);
       });
     language: text/javascript
-order: 2000
+order: 5000

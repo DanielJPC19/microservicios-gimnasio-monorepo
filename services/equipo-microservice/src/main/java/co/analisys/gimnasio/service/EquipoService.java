@@ -4,7 +4,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import co.analisys.gimnasio.config.RabbitMQConfig;
 import co.analisys.gimnasio.dto.EquipoAveriadoEvent;
@@ -23,6 +25,7 @@ public class EquipoService {
     private final RabbitTemplate rabbitTemplate;
 
     public Equipo agregarEquipo(Equipo equipo) {
+        equipo.validarInvariantes();
         return equipoRepository.save(equipo);
     }
 
@@ -32,15 +35,10 @@ public class EquipoService {
 
     public Equipo reportarAveria(Long id, ReporteAveriaRequest reporte) {
         Equipo equipo = equipoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Equipo no encontrado con id: " + id));
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Equipo no encontrado con id: " + id));
 
-        // Actualizar descripción indicando el estado de avería (reemplaza avería previa si ya existía)
-        String baseDesc = equipo.getDescripcion() != null ? equipo.getDescripcion() : "";
-        int idx = baseDesc.indexOf(" [AVERÍA:");
-        if (idx != -1) {
-            baseDesc = baseDesc.substring(0, idx);
-        }
-        equipo.setDescripcion(baseDesc + " [AVERÍA: " + reporte.getMotivo() + " - " + reporte.getGravedad() + "]");
+        equipo.registrarAveria(reporte.getMotivo(), reporte.getGravedad());
         Equipo actualizado = equipoRepository.save(equipo);
 
         try {

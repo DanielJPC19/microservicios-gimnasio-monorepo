@@ -10,12 +10,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import co.analisys.gimnasio.dto.DatosEntrenamiento;
+import co.analisys.gimnasio.dto.MiembroRequest;
 import co.analisys.gimnasio.dto.RegistroEntrenamientoRequest;
 import co.analisys.gimnasio.model.Miembro;
 import co.analisys.gimnasio.service.MiembroService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -32,9 +34,10 @@ public class MiembroController {
     @PreAuthorize("hasAnyRole('ADMIN', 'MEMBER')")
     @Operation(summary = "Registrar miembro", description = "Registra un nuevo miembro/socio en el gimnasio")
     @ApiResponse(responseCode = "200", description = "Miembro registrado exitosamente")
+    @ApiResponse(responseCode = "400", description = "Datos del miembro invalidos")
     @ApiResponse(responseCode = "403", description = "Acceso denegado")
-    public Miembro registrarMiembro(@RequestBody Miembro miembro) {
-        return miembroService.registrarMiembro(miembro);
+    public Miembro registrarMiembro(@Valid @RequestBody MiembroRequest request) {
+        return miembroService.registrarMiembro(request.toEntity());
     }
 
     @GetMapping("")
@@ -53,7 +56,7 @@ public class MiembroController {
     @ApiResponse(responseCode = "400", description = "Datos de entrenamiento invalidos")
     @ApiResponse(responseCode = "404", description = "Miembro no encontrado")
     @ApiResponse(responseCode = "503", description = "Kafka no disponible")
-    public DatosEntrenamiento registrarEntrenamiento(@PathVariable Long id, @RequestBody RegistroEntrenamientoRequest request) {
+    public DatosEntrenamiento registrarEntrenamiento(@PathVariable Long id, @Valid @RequestBody RegistroEntrenamientoRequest request) {
         return miembroService.registrarEntrenamiento(id, request);
     }
 }

@@ -69,6 +69,7 @@ docker-compose.yml     # orquesta los 8 servicios + rabbitmq + keycloak + kafka
 ```bash
 docker-compose up --build
 ```
+> **Guía paso a paso para sustentar en Postman (RabbitMQ, Kafka, Keycloak y DDD):** Ver [`GUIA_PRUEBAS_POSTMAN.md`](GUIA_PRUEBAS_POSTMAN.md).
 > El panel web de administración de RabbitMQ queda disponible en: `http://localhost:15672` (usuario: `guest`, contraseña: `guest`).
 > Keycloak queda disponible en: `http://localhost:8180` (usuario admin: `admin`, contraseña: `admin`). El realm `gimnasio` se importa automáticamente.
 
@@ -157,6 +158,7 @@ curl -i -X POST http://localhost:8080/api/gimnasio/entrenadores \
 
 ## Probar Flujos Asincrónicos (RabbitMQ)
 
+> **Guía teórica y práctica completa de RabbitMQ y Dead Letter Queue (DLQ):** Ver [`doc/RABBITMQ_Y_DLQ_GUIA.md`](doc/RABBITMQ_Y_DLQ_GUIA.md).
 > Todos los endpoints (excepto `GET /api/gimnasio`) requieren autenticación JWT.
 > Agregar el header `Authorization: Bearer <token>` a cada request, o usar Swagger UI con "Authorize".
 
@@ -170,7 +172,7 @@ TOKEN=$(curl -s -X POST http://localhost:8180/realms/gimnasio/protocol/openid-co
 curl -X POST http://localhost:8080/api/gimnasio/miembros \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"nombre": "Carlos Mendoza", "email": {"email": "carlos@gmail.com"}, "fechaInscripcion": {"fechaInscripcion": "2026-09-14"}}'
+  -d '{"nombre": "Carlos Mendoza", "email": "carlos@gmail.com", "fechaInscripcion": "2026-09-14"}'
 ```
 *Ver en la consola de `notificacion-service` el log con el envío del correo de bienvenida.*
 

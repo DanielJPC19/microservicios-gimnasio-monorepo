@@ -8,8 +8,8 @@ body:
   content: |-
     {
       "nombre": "Juan Perez",
-      "email": { "email": "juan@email.com" },
-      "fechaInscripcion": { "fechaInscripcion": "2026-08-31" }
+      "email": "juan@email.com",
+      "fechaInscripcion": "2026-08-31"
     }
 scripts:
   - type: afterResponse

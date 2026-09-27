@@ -15,6 +15,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -46,6 +48,9 @@ public class ClaseService {
     private String entrenadorServiceUrl;
 
     public Clase programarClase(Clase clase) {
+        clase.validarInvariantes();
+        validarEntrenadorExiste(clase.getEntrenadorId());
+
         Clase guardada = claseRepository.save(clase);
         // La clase nueva aparece en el dashboard de ocupación desde el inicio.
         ocupacionClaseProducer.actualizarOcupacion(
@@ -56,6 +61,33 @@ public class ClaseService {
         return guardada;
     }
 
+    private void validarEntrenadorExiste(Long entrenadorId) {
+        try {
+            HttpEntity<Void> entity = crearHttpEntityConAuth();
+            ResponseEntity<EntrenadorDTO> response = restTemplate.exchange(
+                    entrenadorServiceUrl + "/api/gimnasio/entrenadores/" + entrenadorId,
+                    HttpMethod.GET,
+                    entity,
+                    EntrenadorDTO.class
+            );
+            if (response.getBody() == null) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "El entrenador con ID " + entrenadorId + " no existe");
+            }
+        } catch (HttpClientErrorException.NotFound e) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                    "El entrenador con ID " + entrenadorId + " no existe");
+        } catch (HttpClientErrorException e) {
+            throw new ResponseStatusException(e.getStatusCode(),
+                    "Error al validar el entrenador con ID " + entrenadorId + ": " + e.getStatusText());
+        } catch (RestClientException e) {
+            log.error("Error de comunicación con entrenador-microservice al validar entrenador {}: {}",
+                    entrenadorId, e.getMessage());
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "No se pudo verificar la existencia del entrenador en entrenador-microservice");
+        }
+    }
+
     public Clase cambiarHorario(Long claseId, CambioHorarioClaseRequest request) {
         if (request == null || request.getNuevoHorario() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Debe indicar el nuevoHorario de la clase");
@@ -64,10 +96,7 @@ public class ClaseService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Clase " + claseId + " no encontrada"));
 
         LocalDateTime horarioAnterior = clase.getHorario() != null ? clase.getHorario().getHorario() : null;
-        Horario nuevoHorarioObj = clase.getHorario() != null
-                ? clase.getHorario().cambiarHorario(new Horario(request.getNuevoHorario()))
-                : new Horario(request.getNuevoHorario());
-        clase.setHorario(nuevoHorarioObj);
+        clase.reprogramar(new Horario(request.getNuevoHorario()));
         Clase actualizada = claseRepository.save(clase);
 
         try {
@@ -91,11 +120,7 @@ public class ClaseService {
     @Transactional
     public Clase registrarIngreso(Long claseId) {
         Clase clase = buscarParaActualizar(claseId);
-        if (clase.getOcupacionActual() >= clase.getCapacidad().getCapacidad()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "La clase " + claseId + " ya alcanzó su capacidad máxima");
-        }
-        clase.setOcupacionActual(clase.getOcupacionActual() + 1);
+        clase.registrarIngreso();
         publicarOcupacionTrasCommit(clase);
         return clase;
     }
@@ -103,11 +128,7 @@ public class ClaseService {
     @Transactional
     public Clase registrarSalida(Long claseId) {
         Clase clase = buscarParaActualizar(claseId);
-        if (clase.getOcupacionActual() <= 0) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "La clase " + claseId + " no tiene asistentes registrados");
-        }
-        clase.setOcupacionActual(clase.getOcupacionActual() - 1);
+        clase.registrarSalida();
         publicarOcupacionTrasCommit(clase);
         return clase;
     }
@@ -137,6 +158,19 @@ public class ClaseService {
         return clases.stream().map(this::convertirAResponse).collect(Collectors.toList());
     }
 
+    private HttpEntity<Void> crearHttpEntityConAuth() {
+        HttpHeaders headers = new HttpHeaders();
+        ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        if (attrs != null) {
+            HttpServletRequest httpRequest = attrs.getRequest();
+            String authorization = httpRequest.getHeader("Authorization");
+            if (authorization != null) {
+                headers.set("Authorization", authorization);
+            }
+        }
+        return new HttpEntity<>(headers);
+    }
+
     private ClaseResponse convertirAResponse(Clase clase) {
         ClaseResponse response = new ClaseResponse();
         response.setId(clase.getId());
@@ -146,17 +180,7 @@ public class ClaseService {
         response.setOcupacionActual(clase.getOcupacionActual());
 
         try {
-            HttpHeaders headers = new HttpHeaders();
-            ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-            if (attrs != null) {
-                HttpServletRequest httpRequest = attrs.getRequest();
-                String authorization = httpRequest.getHeader("Authorization");
-                if (authorization != null) {
-                    headers.set("Authorization", authorization);
-                }
-            }
-
-            HttpEntity<Void> entity = new HttpEntity<>(headers);
+            HttpEntity<Void> entity = crearHttpEntityConAuth();
             ResponseEntity<EntrenadorDTO> entrenadorResponse = restTemplate.exchange(
                 entrenadorServiceUrl + "/api/gimnasio/entrenadores/" + clase.getEntrenadorId(),
                 HttpMethod.GET,
@@ -168,7 +192,8 @@ public class ClaseService {
                 response.setEntrenador(entrenadorResponse.getBody());
             }
         } catch (Exception e) {
-            System.out.println("Error al conectar con entrenador-microservice: " + e.getMessage());
+            log.warn("Error al conectar con entrenador-microservice para enriquecer clase {}: {}",
+                    clase.getId(), e.getMessage());
         }
 
         return response;

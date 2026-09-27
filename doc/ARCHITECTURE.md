@@ -151,8 +151,10 @@ graph TB
 ## Comunicación entre Servicios
 
 ### 1. Comunicación Síncrona (REST)
-- `clase-microservice` → `entrenador-microservice`: Enriquecimiento de clases consultando datos del instructor.
-- `api-gateway` → Todos los microservicios: Enrutamiento perimetral con `RestClient`.
+- `clase-microservice` → `entrenador-microservice`:
+  - **Validación en creación (`POST /api/gimnasio/clases`)**: Verifica síncronamente que el `entrenadorId` exista en `entrenador-microservice` antes de programar la clase (rechazando con `404 Not Found` si no existe).
+  - **Enriquecimiento en consulta (`GET /api/gimnasio/clases`)**: Consulta los datos completos del entrenador asignado para embeber `EntrenadorDTO` en `ClaseResponse`.
+- `api-gateway` → Todos los microservicios: Enrutamiento perimetral con `RestClient`, propagando el token JWT (`Authorization`) y reenviando de forma transparente los códigos de estado HTTP (`200`, `202`, `400`, `404`, `409`, `503`) mediante `GlobalExceptionHandler`.
 
 ### 2. Comunicación Asíncrona con RabbitMQ (Parte 2)
 - **Direct Exchange (Notificación de Inscripción)**:
@@ -348,36 +350,51 @@ Cada microservicio utiliza su propia **instancia H2 en memoria**:
 - Cada servicio tiene un `DataLoader.java` que resiembra datos de prueba en el arranque (`@Component` + `CommandLineRunner`)
 - **No hay persistencia externa** (PostgreSQL, MySQL, etc.)
 
-### Modelos de Datos (DDD)
+### Modelos de Dominio Rico (DDD), Value Objects y Manejo de Errores
+
+Los agregados y **Value Objects (VOs)** encapsulan reglas de negocio y validan invariantes en su construcción:
+- **Value Objects inmutables (`@Getter`, `@EqualsAndHashCode`, `@ToString`, sin setters públicos)**:
+  - `Capacidad` (`clase-microservice`): Valida `capacidad > 0` y expone `tieneCupoDisponible(ocupacionActual)`.
+  - `Horario` (`clase-microservice`): Valida `horario != null` y formato ISO-8601.
+  - `Email` (`miembro-microservice`): Valida no vacío y formato de correo electrónico válido (`^[^@\s]+@[^@\s]+\.[^@\s]+$`).
+  - `FechaInscripcion` (`miembro-microservice`): Valida fecha no nula en formato `YYYY-MM-DD`.
+  - Todos los VOs utilizan `@JsonValue` y `@JsonCreator` para mantener un **contrato JSON plano** hacia el exterior sin exponer anidamiento innecesario.
+- **Raíces de Agregado con comportamiento de negocio**:
+  - `Clase`: Métodos de dominio `validarInvariantes()`, `reprogramar(Horario)`, `registrarIngreso()` (verifica cupo disponible) y `registrarSalida()`.
+  - `Equipo`: Métodos de dominio `validarInvariantes()` y `registrarAveria(motivo, gravedad)`.
+  - `Miembro`: Métodos de dominio `validarInvariantes()` y `actualizarEmail(Email)`.
+  - `Entrenador`: Métodos de dominio `validarInvariantes()` y `actualizarEspecialidad(String)`.
+- **DTOs, Validaciones y Manejo Global de Errores**:
+  - Uso de DTOs de entrada (`ClaseRequest`, `MiembroRequest`, `EntrenadorRequest`, `EquipoRequest`, `CambioHorarioClaseRequest`, `ReporteAveriaRequest`, `RegistroEntrenamientoRequest`) validados con `@Valid` (`spring-boot-starter-validation`).
+  - Cada microservicio cuenta con un `GlobalExceptionHandler` (`@RestControllerAdvice`) que traduce errores de validación (`MethodArgumentNotValidException`), violaciones de invariantes (`IllegalArgumentException`), conflictos de estado (`IllegalStateException` → `409`) y recursos no encontrados (`ResponseStatusException` → `404`) en respuestas JSON estandarizadas (`timestamp`, `status`, `error`, `message`, `path`).
+
 ```
-Clase
+Clase (Aggregate Root)
 ├── id (PK)
 ├── nombre
-├── horario
-├── capacidad
-└── entrenadorId (FK referencia lógica)
+├── horario (VO inmutable: Horario)
+├── capacidad (VO inmutable: Capacidad)
+├── entrenadorId (FK referencia lógica validada contra entrenador-microservice)
+└── ocupacionActual
 
-Entrenador
+Entrenador (Aggregate Root)
 ├── id (PK)
 ├── nombre
-├── especialidad
-└── salario
+└── especialidad
 
-Equipo
+Equipo (Aggregate Root)
 ├── id (PK)
 ├── nombre
-├── tipo
-├── estado
-└── ultimoMantenimiento
+├── descripcion
+└── cantidad
 
-Miembro
+Miembro (Aggregate Root)
 ├── id (PK)
 ├── nombre
-├── email
-├── membresiaActiva
-└── fechaRegistro
+├── email (VO inmutable: Email)
+└── fechaInscripcion (VO inmutable: FechaInscripcion)
 
-Pago
+Pago (Aggregate Root)
 ├── id (PK)
 ├── miembroId (referencia lógica)
 ├── monto
@@ -393,50 +410,65 @@ Pago
 
 ## Endpoints REST
 
-### Clase Service (8080)
+### Clase Service (8084)
 ```
 POST   /api/gimnasio/clases
-       Request: { "nombre": "Yoga", "horario": "10:00", "capacidad": 20, "entrenadorId": 1 }
-       Response: { "id": 1, "nombre": "Yoga", ... }
+       Request:  { "nombre": "Yoga", "horario": "2026-09-01T10:00:00", "capacidad": 20, "entrenadorId": 1 }
+       Response: { "id": 1, "nombre": "Yoga", "horario": "2026-09-01T10:00:00", "capacidad": 20, "entrenadorId": 1, "ocupacionActual": 0 }
+       Errores:  400 (datos inválidos / capacidad <= 0), 404 (entrenadorId no existe)
 
 GET    /api/gimnasio/clases
        Response: [
-         { "id": 1, "nombre": "Yoga", ..., "entrenador": { "id": 1, "nombre": "Juan", ... } },
-         ...
+         { "id": 1, "nombre": "Yoga", "horario": "2026-09-01T10:00:00", "capacidadMaxima": 20, "ocupacionActual": 0, "entrenador": { "id": 1, "nombre": "Carlos Rodríguez", "especialidad": "Yoga" } }
        ]
+
+PUT    /api/gimnasio/clases/{id}/horario
+       Request:  { "nuevoHorario": "2026-09-28T18:30:00", "motivo": "Cambio de salón" }
+       Response: { "id": 1, "nombre": "Yoga", "horario": "2026-09-28T18:30:00", ... }
+
+POST   /api/gimnasio/clases/{id}/ingreso
+POST   /api/gimnasio/clases/{id}/salida
 ```
 
 ### Entrenador Service (8081)
 ```
 POST   /api/gimnasio/entrenadores
-       Request: { "nombre": "Juan Pérez", "especialidad": "Cardio", "salario": 2500 }
-       Response: { "id": 1, ... }
+       Request:  { "nombre": "Juan Pérez", "especialidad": "Cardio" }
+       Response: { "id": 1, "nombre": "Juan Pérez", "especialidad": "Cardio" }
 
 GET    /api/gimnasio/entrenadores
-       Response: [ { "id": 1, "nombre": "Juan Pérez", ... }, ... ]
+       Response: [ { "id": 1, "nombre": "Juan Pérez", "especialidad": "Cardio" }, ... ]
 
 GET    /api/gimnasio/entrenadores/{id}
-       Response: { "id": 1, "nombre": "Juan Pérez", "especialidad": "Cardio", "salario": 2500 }
+       Response (200): { "id": 1, "nombre": "Juan Pérez", "especialidad": "Cardio" }
+       Response (404): { "status": 404, "error": "Not Found", "message": "Entrenador con ID 99 no encontrado", ... }
 ```
 
 ### Equipo Service (8082)
 ```
 POST   /api/gimnasio/equipos
-       Request: { "nombre": "Treadmill", "tipo": "Cardio", "estado": "Operativo", ... }
-       Response: { "id": 1, ... }
+       Request:  { "nombre": "Cinta de correr", "descripcion": "Equipo cardiovascular", "cantidad": 5 }
+       Response: { "id": 1, "nombre": "Cinta de correr", "descripcion": "Equipo cardiovascular", "cantidad": 5 }
 
 GET    /api/gimnasio/equipos
-       Response: [ { "id": 1, "nombre": "Treadmill", ... }, ... ]
+       Response: [ { "id": 1, "nombre": "Cinta de correr", ... }, ... ]
+
+POST   /api/gimnasio/equipos/{id}/reportar-averia
+       Request:  { "motivo": "Fallo en motor de tracción", "gravedad": "ALTA" }
+       Response: { "id": 1, "nombre": "Cinta de correr", "descripcion": "... [AVERÍA: Fallo en motor de tracción - ALTA]", "cantidad": 5 }
 ```
 
 ### Miembro Service (8083)
 ```
 POST   /api/gimnasio/miembros
-       Request: { "nombre": "Carlos López", "email": "carlos@mail.com", "membresiaActiva": true, ... }
-       Response: { "id": 1, ... }
+       Request:  { "nombre": "Juan Perez", "email": "juan@email.com", "fechaInscripcion": "2026-08-31" }
+       Response: { "id": 1, "nombre": "Juan Perez", "email": "juan@email.com", "fechaInscripcion": "2026-08-31" }
 
 GET    /api/gimnasio/miembros
-       Response: [ { "id": 1, "nombre": "Carlos López", ... }, ... ]
+       Response: [ { "id": 1, "nombre": "Juan Perez", "email": "juan@email.com", "fechaInscripcion": "2026-08-31" }, ... ]
+
+POST   /api/gimnasio/miembros/{id}/entrenamientos
+       Request:  { "tipo": "CARDIO", "duracionMinutos": 45, "calorias": 400 }
 ```
 
 ### Monitoreo Service (8087)

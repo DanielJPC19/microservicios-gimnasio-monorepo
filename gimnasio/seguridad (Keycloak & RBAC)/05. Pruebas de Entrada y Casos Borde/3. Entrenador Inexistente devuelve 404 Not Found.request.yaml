@@ -1,0 +1,15 @@
+$kind: http-request
+url: "{{api_url}}/entrenadores/999"
+method: GET
+auth:
+  type: bearer
+  credentials:
+    token: "{{admin_token}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("GET /entrenadores/999 inexistente -> 404 Not Found", function () {
+          pm.response.to.have.status(404);
+      });
+    language: text/javascript
+order: 3000

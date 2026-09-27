@@ -27,6 +27,7 @@ public class MiembroService {
     private final DatosEntrenamientoProducer datosEntrenamientoProducer;
 
     public Miembro registrarMiembro(Miembro miembro) {
+        miembro.validarInvariantes();
         Miembro guardado = miembroRepository.save(miembro);
 
         try {

@@ -7,20 +7,20 @@ body:
   type: text
   content: |-
     {
-      "nombre": "Clase No Autorizada",
+      "nombre": "Clase Sin Entrenador",
       "horario": "2026-09-01T10:00:00",
       "capacidad": 20,
-      "entrenadorId": 1
+      "entrenadorId": 999
     }
 auth:
   type: bearer
   credentials:
-    token: "{{member_token}}"
+    token: "{{admin_token}}"
 scripts:
   - type: afterResponse
     code: |-
-      pm.test("MEMBER no autorizado a programar clase -> 403 Forbidden", function () {
-          pm.response.to.have.status(403);
+      pm.test("Programar clase con entrenadorId inexistente -> 404 Not Found", function () {
+          pm.response.to.have.status(404);
       });
     language: text/javascript
-order: 2000
+order: 4000

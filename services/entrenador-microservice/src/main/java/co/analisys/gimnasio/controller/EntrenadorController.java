@@ -1,10 +1,12 @@
 package co.analisys.gimnasio.controller;
 
+import co.analisys.gimnasio.dto.EntrenadorRequest;
 import co.analisys.gimnasio.model.Entrenador;
 import co.analisys.gimnasio.service.EntrenadorService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -23,9 +25,10 @@ public class EntrenadorController {
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Crear entrenador", description = "Agrega un nuevo entrenador al sistema. Solo administradores.")
     @ApiResponse(responseCode = "200", description = "Entrenador creado exitosamente")
+    @ApiResponse(responseCode = "400", description = "Datos del entrenador invalidos")
     @ApiResponse(responseCode = "403", description = "Acceso denegado - se requiere rol ADMIN")
-    public Entrenador agregarEntrenador(@RequestBody Entrenador entrenador) {
-        return entrenadorService.agregarEntrenador(entrenador);
+    public Entrenador agregarEntrenador(@Valid @RequestBody EntrenadorRequest request) {
+        return entrenadorService.agregarEntrenador(request.toEntity());
     }
 
     @GetMapping("")

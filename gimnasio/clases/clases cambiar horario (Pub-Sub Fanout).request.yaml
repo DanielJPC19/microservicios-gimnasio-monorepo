@@ -1,19 +1,17 @@
 $kind: http-request
-url: "{{api_url}}/clases"
-method: POST
+url: "{{api_url}}/clases/1/horario"
+method: PUT
 headers:
   Content-Type: application/json
 body:
   type: text
   content: |-
     {
-      "nombre": "Yoga",
-      "horario": "2026-09-01T10:00:00",
-      "capacidad": 20,
-      "entrenadorId": 1
+      "nuevoHorario": "2026-09-28T18:30:00",
+      "motivo": "Cambio de salón principal por mantenimiento"
     }
 scripts:
   - type: afterResponse
     code: pm.test("Status code is 200", function () { pm.response.to.have.status(200); });
     language: text/javascript
-order: 2000
+order: 2500
