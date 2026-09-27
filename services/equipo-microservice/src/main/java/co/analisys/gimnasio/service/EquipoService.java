@@ -34,8 +34,13 @@ public class EquipoService {
         Equipo equipo = equipoRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Equipo no encontrado con id: " + id));
 
-        // Actualizar descripción indicando el estado de avería
-        equipo.setDescripcion(equipo.getDescripcion() + " [AVERÍA: " + reporte.getMotivo() + " - " + reporte.getGravedad() + "]");
+        // Actualizar descripción indicando el estado de avería (reemplaza avería previa si ya existía)
+        String baseDesc = equipo.getDescripcion() != null ? equipo.getDescripcion() : "";
+        int idx = baseDesc.indexOf(" [AVERÍA:");
+        if (idx != -1) {
+            baseDesc = baseDesc.substring(0, idx);
+        }
+        equipo.setDescripcion(baseDesc + " [AVERÍA: " + reporte.getMotivo() + " - " + reporte.getGravedad() + "]");
         Equipo actualizado = equipoRepository.save(equipo);
 
         try {
