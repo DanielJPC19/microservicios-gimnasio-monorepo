@@ -1,6 +1,6 @@
 # Gimnasio - Arquitectura de Microservicios
 
-Refactorización de un monolito Spring Boot de gestión de gimnasio en microservicios independientes aplicando Domain-Driven Design (DDD). Taller académico — ver [`doc/project.md`](doc/project.md) para el enunciado completo.
+Sistema distribuido de gestión de gimnasio construido con **Spring Boot 3.3.2**, **Spring Cloud 2023.0.3** y **Java 17**, refactorizado desde un monolito hacia una arquitectura de microservicios con **Spring Cloud Gateway (Reactivo)**, **Netflix Eureka**, **Keycloak (OAuth2/JWT)**, **RabbitMQ**, **Apache Kafka (KRaft) + Kafka Streams** y **Domain-Driven Design (DDD)**.
 
 ## Equipo
 
@@ -9,15 +9,33 @@ Refactorización de un monolito Spring Boot de gestión de gimnasio en microserv
 3. Daniel Gonzales Rivera - A00399873
 4. Juan Pablo Parra Betancourt - A00
 
+---
+
+## Índice de Documentación
+
+| Documento | Contenido |
+|---|---|
+| [`doc/01-ARQUITECTURA.md`](doc/01-ARQUITECTURA.md) | Visión general, diagrama de arquitectura, patrones de comunicación y modelo de dominio (DDD) |
+| [`doc/02-API-GATEWAY.md`](doc/02-API-GATEWAY.md) | **API Gateway con Spring Cloud Gateway**: enrutamiento YAML/Java, Eureka, LoadBalancer, agregación reactiva y guion de sustentación |
+| [`doc/03-SEGURIDAD.md`](doc/03-SEGURIDAD.md) | Seguridad OAuth2/JWT con Keycloak, forwarding de tokens y matriz de permisos RBAC |
+| [`doc/04-API-REFERENCE.md`](doc/04-API-REFERENCE.md) | Referencia completa de todos los endpoints REST, DTOs, validaciones y respuestas |
+| [`doc/05-MENSAJERIA.md`](doc/05-MENSAJERIA.md) | RabbitMQ (Direct, Fanout Pub/Sub, DLQ) y Apache Kafka (SSE, Kafka Streams y recuperación por checkpoints) |
+| [`doc/RABBITMQ_Y_DLQ_GUIA.md`](doc/RABBITMQ_Y_DLQ_GUIA.md) | Guía teórica y práctica detallada de RabbitMQ y Dead Letter Queue |
+| [`postman/GUIA_PRUEBAS_POSTMAN.md`](postman/GUIA_PRUEBAS_POSTMAN.md) | Guía paso a paso para ejecutar las 60 pruebas automatizadas en Postman |
+| [`doc/Deployment Diagram.pdf`](doc/Deployment%20Diagram.pdf) | Diagrama de despliegue del sistema |
+
+---
+
 ## Arquitectura
 
 | Servicio                  | Puerto | Dominio                 |
 | ------------------------- | ------ | ----------------------- |
-| `api-gateway`             | 8080   | API Gateway             |
-| `clase-microservice`      | 8084   | Programación de clases  |
+| `api-gateway`             | 8080   | Spring Cloud Gateway (Reactivo, WebFlux + LoadBalancer + Agregación) |
+| `eureka-server`           | 8761   | Registro y descubrimiento de servicios (Netflix Eureka) |
 | `entrenador-microservice` | 8081   | Gestión de entrenadores |
 | `equipo-microservice`     | 8082   | Inventario y averías    |
 | `miembro-microservice`    | 8083   | Gestión de miembros     |
+| `clase-microservice` (`x2`)| 8084 / 8088 | Programación de clases (2 instancias para balanceo Round-Robin) |
 | `notificacion-microservice`| 8085  | Consumidor de eventos / Notificaciones |
 | `pago-microservice`       | 8086   | Procesamiento de pagos (con Dead Letter Queue) |
 | `monitoreo-microservice`  | 8087   | Monitoreo en tiempo real y análisis de entrenamientos (Kafka) |
@@ -26,29 +44,26 @@ Refactorización de un monolito Spring Boot de gestión de gimnasio en microserv
 | `Keycloak`                | 8180   | Proveedor de identidad (IAM), autenticación JWT |
 
 ### Comunicación entre Servicios
-- **Síncrona (REST)**: `clase-service` consulta a `entrenador-service` para enriquecer la respuesta de clases con los datos del instructor asignado. `api-gateway` rutea las peticiones externas.
+- **Enrutamiento, Descubrimiento y Composición (Spring Cloud Gateway + Eureka)**:
+  1. **Enrutamiento declarativo y programático**: 5 rutas en [`application.yml`](services/api-gateway/src/main/resources/application.yml) y 1 ruta programática (`ruta-equipos-programatica`) en [`GatewayRoutesConfig.java`](services/api-gateway/src/main/java/co/analisys/gimnasio/config/GatewayRoutesConfig.java) usando nombres de servicio (`lb://<servicio>`).
+  2. **Balanceo de carga**: `Spring Cloud LoadBalancer` resuelve las instancias en `eureka-server` (`:8761`) y reparte tráfico en Round-Robin entre `clase-service` (`:8084`) y `clase-service-2` (`:8088`).
+  3. **Agregación de respuestas**: `GET /api/gimnasio/agregacion/miembro/{id}` ([`ResumenMiembroAggregationController.java`](services/api-gateway/src/main/java/co/analisys/gimnasio/controller/ResumenMiembroAggregationController.java)) consulta en paralelo (`Mono.zip`) a `miembro-service`, `clase-service` y `pago-service`.
+- **Síncrona (REST)**: `clase-service` consulta a `entrenador-service` para validar y enriquecer la respuesta de clases con los datos del instructor asignado.
 - **Asíncrona (RabbitMQ)**:
   1. **Notificación de Inscripción (Direct Exchange)**: `miembro-microservice` emite `MiembroInscritoEvent` a `gimnasio.miembro.exchange` con routing key `miembro.inscrito`. `notificacion-microservice` procesa el evento y envía el correo de bienvenida.
-  2. **Difusión de Averías de Equipos (Fanout Exchange - Pub/Sub)**: Cuando se reporta una máquina averiada en `equipo-microservice`, se publica `EquipoAveriadoEvent` a `gimnasio.equipo.events`. RabbitMQ difunde el mensaje en simultáneo a 3 colas de `notificacion-microservice`:
-     - `equipo.averia.mantenimiento`: Genera ticket de reparación urgente para servicio técnico.
-     - `equipo.averia.entrenadores`: Alerta a los instructores de sala para reprogramar rutinas.
-     - `equipo.averia.app-socios`: Dispara notificación push a la app móvil de los socios.
-  3. **Pagos con Dead Letter Queue**: `pago-microservice` recibe el pago (`202 Accepted`, estado `PENDIENTE`) y publica `PagoSolicitadoEvent` a `gimnasio.pagos.exchange` (routing key `pago.procesar`). El consumidor lo procesa contra una pasarela simulada:
-     - Error de pasarela (`PagoRechazadoException`): hasta 3 intentos con backoff exponencial (1s, 2s).
-     - Datos inválidos (`PagoInvalidoException`): no se reintenta.
-     - Si falla definitivamente, el mensaje se rechaza sin reencolar y RabbitMQ lo desvía (`x-dead-letter-exchange`) a `gimnasio.pagos.dlx` → `pagos.procesamiento.dlq`, cuyo consumidor marca el pago como `FALLIDO`.
+  2. **Difusión de Averías y Cambios de Horario (Fanout Exchange - Pub/Sub)**: `equipo-microservice` (`gimnasio.equipo.events`) y `clase-microservice` (`gimnasio.clase.horario.events`) difunden cada evento en simultáneo a 3 colas de `notificacion-microservice`.
+  3. **Pagos con Dead Letter Queue**: `pago-microservice` recibe el pago (`202 Accepted`, estado `PENDIENTE`) y publica `PagoSolicitadoEvent` a `gimnasio.pagos.exchange` (routing key `pago.procesar`). El consumidor reintenta hasta 3 veces con backoff exponencial (1s, 2s) ante fallos de pasarela (`PagoRechazadoException`) y desvía los fallos definitivos a `gimnasio.pagos.dlx` → `pagos.procesamiento.dlq`.
 - **Streaming (Kafka)**:
   1. **Ocupación de clases en tiempo real**: `clase-microservice` publica `OcupacionClase` en `ocupacion-clases` (key = `claseId`) en cada ingreso/salida. `monitoreo-microservice` (grupo `monitoreo-grupo`) actualiza el dashboard y lo emite por SSE.
   2. **Análisis de entrenamientos (Kafka Streams)**: `miembro-microservice` publica `DatosEntrenamiento` en `datos-entrenamiento` (key = `miembroId`). Un stream processor agrega por miembro en ventanas de 7 días (`resumen-entrenamiento-store`) y publica en `resumen-entrenamiento`.
   3. **Recuperación ante fallos**: un consumidor propio (`recuperacion-grupo`) procesa ambos topics guardando el resultado y el offset en la misma transacción (H2 en archivo). Al reiniciar hace `seek` al último checkpoint.
 
-Detalle completo (modelos, endpoints, decisiones y limitaciones conocidas): [`doc/ARCHITECTURE.md`](doc/ARCHITECTURE.md). Diagrama de despliegue: [`doc/DeploymentDiagram.pdf`](doc/DeploymentDiagram.pdf).
-
 ## Estructura del repo
 
-```
+```text
 services/
   api-gateway/
+  eureka-server/
   clase-microservice/
   entrenador-microservice/
   equipo-microservice/
@@ -56,10 +71,11 @@ services/
   notificacion-microservice/
   pago-microservice/
   monitoreo-microservice/
-doc/
-keycloak/realm/        # realm JSON para importación automática en Keycloak
-pom.xml                # aggregator, compila los módulos
-docker-compose.yml     # orquesta los 8 servicios + rabbitmq + keycloak + kafka
+doc/                   # Documentación completa de arquitectura, gateway, seguridad, API y mensajería
+postman/               # Colección Postman (60 requests), entorno y guía de pruebas
+keycloak/realm/        # Realm JSON para importación automática en Keycloak
+pom.xml                # Aggregator Maven (9 módulos)
+docker-compose.yml     # Orquesta Eureka + Gateway + microservicios + RabbitMQ + Keycloak + Kafka
 ```
 
 ## Cómo correr
@@ -67,11 +83,13 @@ docker-compose.yml     # orquesta los 8 servicios + rabbitmq + keycloak + kafka
 **Con Docker Compose (recomendado para demo):**
 
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
-> **Guía paso a paso para sustentar en Postman (RabbitMQ, Kafka, Keycloak y DDD):** Ver [`GUIA_PRUEBAS_POSTMAN.md`](GUIA_PRUEBAS_POSTMAN.md).
-> El panel web de administración de RabbitMQ queda disponible en: `http://localhost:15672` (usuario: `guest`, contraseña: `guest`).
-> Keycloak queda disponible en: `http://localhost:8180` (usuario admin: `admin`, contraseña: `admin`). El realm `gimnasio` se importa automáticamente.
+> - **Guía paso a paso en Postman:** Ver [`postman/GUIA_PRUEBAS_POSTMAN.md`](postman/GUIA_PRUEBAS_POSTMAN.md).
+> - **Dashboard de Eureka:** `http://localhost:8761`
+> - **Rutas del API Gateway (Actuator):** `http://localhost:8080/actuator/gateway/routes`
+> - **Panel web de RabbitMQ:** `http://localhost:15672` (`guest` / `guest`).
+> - **Keycloak Admin:** `http://localhost:8180` (`admin` / `admin`). El realm `gimnasio` se importa automáticamente.
 
 **Obtener token JWT para pruebas:**
 ```bash
@@ -91,28 +109,24 @@ curl -X POST http://localhost:8180/realms/gimnasio/protocol/openid-connect/token
 | `entrenador1` | `trainer123` | ROLE_TRAINER |
 | `miembro1` | `member123` | ROLE_MEMBER |
 
-**Sin Docker, cada servicio suelto:**
+## Probar API Gateway, Balanceo de Carga y Agregación
 
-1. Levantar RabbitMQ y Keycloak localmente.
-2. Compilar y arrancar:
+> Ver explicación detallada y guion de sustentación en [`doc/02-API-GATEWAY.md`](doc/02-API-GATEWAY.md).
+
 ```bash
-./mvnw compile              # compila todos los módulos desde la raíz
-cd services/entrenador-microservice && ./mvnw spring-boot:run
-cd services/clase-microservice && ./mvnw spring-boot:run
-cd services/equipo-microservice && ./mvnw spring-boot:run
-cd services/miembro-microservice && ./mvnw spring-boot:run
-cd services/notificacion-microservice && ./mvnw spring-boot:run
-cd services/pago-microservice && ./mvnw spring-boot:run
-cd services/api-gateway && ./mvnw spring-boot:run
+# 1. Consultar rutas activas en Spring Cloud Gateway (YAML + Java RouteLocator)
+curl http://localhost:8080/actuator/gateway/routes | python3 -m json.tool
+
+# 2. Consultar resumen agregado de un miembro (Miembro + Clases + Pagos en paralelo con Mono.zip)
+curl -H "Authorization: Bearer $ADMIN_TOKEN" http://localhost:8080/api/gimnasio/agregacion/miembro/1 | python3 -m json.tool
 ```
 
 ## Swagger / OpenAPI
 
-Cada microservicio expone documentación interactiva:
+Cada microservicio de negocio expone documentación interactiva:
 
 | Servicio | Swagger UI |
-|----------|-----------|
-| API Gateway | `http://localhost:8080/swagger-ui.html` |
+|---|---|
 | Entrenador | `http://localhost:8081/swagger-ui.html` |
 | Equipo | `http://localhost:8082/swagger-ui.html` |
 | Miembro | `http://localhost:8083/swagger-ui.html` |
@@ -124,7 +138,7 @@ Cada microservicio expone documentación interactiva:
 
 ## Pruebas de Seguridad (Keycloak + Roles JWT)
 
-> Ver la guía completa con matriz de permisos RBAC y suite automatizada de Postman/Newman en [`doc/SECURITY_TESTING.md`](doc/SECURITY_TESTING.md).
+> Ver la matriz completa de permisos RBAC en [`doc/03-SEGURIDAD.md`](doc/03-SEGURIDAD.md).
 
 ```bash
 # 1. Obtener tokens para cada rol
@@ -278,8 +292,8 @@ docker compose logs monitoreo-service | grep RECUPERACION
 ```
 *Se ven los logs `Reanudando ocupacion-clases-N desde el offset X` y luego `Procesado ...` solo para los eventos nuevos. El checkpoint vive en H2 en archivo, en el volumen `monitoreo-data`.*
 
-> [!note] Postman
-> - También puede abrir en Postman la colección actualizada en `gimnasio.postman_collection.json` y el entorno `gimnasio.postman_environment.json`.
+> [!NOTE]
+> - También puede abrir en Postman la colección actualizada en `postman/gimnasio.postman_collection.json` y el entorno `postman/gimnasio.postman_environment.json`.
 > - Establezca la variable `api_url` en: `http://localhost:8080/api/gimnasio`.
 
 ---

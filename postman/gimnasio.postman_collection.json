@@ -2378,6 +2378,145 @@
       ]
     },
     {
+      "name": "api-gateway & agregacion (Spring Cloud Gateway)",
+      "item": [
+        {
+          "name": "resumen miembro agregado (Miembro + Clases + Pagos)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Contiene datos agregados de miembro, clases y pagos\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property(\"miembro\");",
+                  "    pm.expect(jsonData).to.have.property(\"clasesDisponibles\");",
+                  "    pm.expect(jsonData).to.have.property(\"pagosRegistrados\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_url}}/agregacion/miembro/1",
+              "host": [
+                "{{api_url}}"
+              ],
+              "path": [
+                "agregacion",
+                "miembro",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "miembro por ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_url}}/miembros/1",
+              "host": [
+                "{{api_url}}"
+              ],
+              "path": [
+                "miembros",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "rutas activas gateway (Actuator)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/actuator/gateway/routes",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "actuator",
+                "gateway",
+                "routes"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "salud api-gateway (Actuator)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/actuator/health",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "actuator",
+                "health"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "api",
       "event": [
         {

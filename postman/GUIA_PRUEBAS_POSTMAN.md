@@ -10,18 +10,19 @@ Antes de empezar, puedes abrir estas páginas en tu navegador mientras haces las
 
 | Herramienta | URL | Credenciales | ¿Qué ves ahí? |
 |---|---|---|---|
+| **Eureka Dashboard** | [http://localhost:8761](http://localhost:8761) | *(Sin login)* | Todos los microservicios registrados y las **2 instancias** activas de `CLASE-SERVICE` para el balanceo de carga. |
+| **Rutas API Gateway (Actuator)** | [http://localhost:8080/actuator/gateway/routes](http://localhost:8080/actuator/gateway/routes) | *(Sin login)* | Las rutas declarativas (`application.yml`) y programáticas (`GatewayRoutesConfig`) apuntando a `lb://`. |
 | **RabbitMQ Panel Web** | [http://localhost:15672](http://localhost:15672) | Usuario: `guest`<br>Clave: `guest` | Pestañas **Exchanges** y **Queues** con gráficas en vivo de los mensajes publicados y consumidos. |
 | **Keycloak Admin** | [http://localhost:8180](http://localhost:8180) | Usuario: `admin`<br>Clave: `admin` | El realm `gimnasio`, los usuarios (`admin`, `entrenador1`, `miembro1`) y sus roles. |
-| **Swagger API Gateway** | [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html) | *(Usa el token Bearer)* | Todos los endpoints documentados en un solo lugar. |
 
 ---
 
 ## 2. Configuración inicial en Postman (1 minuto)
 
 1. Abre **Postman** → haz clic en **Import** (arriba a la izquierda).
-2. Selecciona estos 2 archivos de la raíz del proyecto:
-   - `gimnasio.postman_collection.json`
-   - `gimnasio.postman_environment.json`
+2. Selecciona estos 2 archivos de la carpeta `postman/` del proyecto:
+   - `postman/gimnasio.postman_collection.json`
+   - `postman/gimnasio.postman_environment.json`
 3. Arriba a la derecha en Postman (donde dice *No Environment*), selecciona **`Gimnasio Local (Docker)`**.
 
 ### Paso Obligatorio antes de probar: Obtener los Tokens
@@ -154,9 +155,26 @@ En la carpeta **`seguridad (Keycloak & RBAC)`** tienes todo separado por carpeta
 
 ---
 
-## 6. Truco rápido: Correr las 56 pruebas solas con un clic
+## 6. Cómo probar Spring Cloud Gateway, Eureka, Balanceo de Carga y Agregación
 
-Si quieres ver pasar las **56 peticiones y 62 validaciones** de una sola vez en Postman:
+En la carpeta **`api-gateway & agregacion (Spring Cloud Gateway)`** de Postman tienes listas las peticiones para demostrar los 5 pasos de la tarea:
+
+1. **Rutas del Gateway (`rutas activas gateway (Actuator)`)**:
+   - Llama a `GET http://localhost:8080/actuator/gateway/routes`.
+   - Muestra todas las rutas cargadas por Spring Cloud Gateway (las 5 declarativas de `application.yml` y `ruta-equipos-programatica` creada en `GatewayRoutesConfig.java`), todas apuntando a `lb://<servicio>`.
+2. **Registro y Balanceo de Carga con Eureka**:
+   - Abre **[http://localhost:8761](http://localhost:8761)** en el navegador: verás todos los microservicios registrados y **2 instancias activas de `CLASE-SERVICE`** (`clase-service` y `clase-service-2`).
+   - Cada vez que ejecutas `clases GET` en Postman (`GET http://localhost:8080/api/gimnasio/clases`), `Spring Cloud LoadBalancer` alterna en Round-Robin entre las dos instancias.
+3. **Agregación Reactiva de Respuestas (`resumen miembro agregado (Miembro + Clases + Pagos)`)**:
+   - Llama a `GET http://localhost:8080/api/gimnasio/agregacion/miembro/1` (con el token de `ADMIN` activo).
+   - El Gateway consulta en paralelo (`Mono.zip` + `WebClient` con `@LoadBalanced`) a `miembro-service`, `clase-service` y `pago-service`, devolviendo en un solo JSON los datos del miembro `1`, las clases disponibles y únicamente los pagos asociados a ese miembro.
+
+---
+
+## 7. Truco rápido: Correr todas las pruebas solas con un clic
+
+Si quieres ver pasar las **60 peticiones y sus validaciones** de una sola vez en Postman:
 1. Haz clic en los **tres puntos (`...`)** al lado del nombre de la colección **`gimnasio`** → **Run collection**.
 2. Haz clic en el botón azul **Run gimnasio**.
-3. Verás las **62 pruebas en verde (`Passed`)** en unos 4 segundos.
+3. Verás todas las pruebas en verde (`Passed`) en unos segundos.
+

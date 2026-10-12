@@ -67,7 +67,7 @@ public class ResumenMiembroAggregationController {
                     return Mono.just(Collections.emptyList());
                 });
 
-        // 3. Llamada concurrente a pago-service
+        // 3. Llamada concurrente a pago-service (filtrando los pagos del miembro consultado)
         Mono<List<Map<String, Object>>> pagosMono = client.get()
                 .uri("lb://pago-service/api/gimnasio/pagos")
                 .headers(headers -> {
@@ -75,6 +75,10 @@ public class ResumenMiembroAggregationController {
                 })
                 .retrieve()
                 .bodyToMono(new ParameterizedTypeReference<List<Map<String, Object>>>() {})
+                .map(pagos -> pagos.stream()
+                        .filter(p -> p.get("miembroId") != null
+                                && String.valueOf(id).equals(String.valueOf(p.get("miembroId"))))
+                        .toList())
                 .onErrorResume(e -> {
                     log.error("Error al obtener pagos: {}", e.getMessage());
                     return Mono.just(Collections.emptyList());
