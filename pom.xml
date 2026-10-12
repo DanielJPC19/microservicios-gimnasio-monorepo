@@ -18,6 +18,7 @@
 		<module>services/notificacion-microservice</module>
 		<module>services/pago-microservice</module>
 		<module>services/monitoreo-microservice</module>
+		<module>services/eureka-server</module>
 		<module>services/api-gateway</module>
 	</modules>
 </project>

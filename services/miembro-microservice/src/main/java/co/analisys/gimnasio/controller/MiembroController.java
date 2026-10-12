@@ -49,6 +49,15 @@ public class MiembroController {
         return miembroService.obtenerTodosMiembros();
     }
 
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TRAINER', 'MEMBER')")
+    @Operation(summary = "Obtener miembro por ID", description = "Obtiene un miembro especifico por su identificador")
+    @ApiResponse(responseCode = "200", description = "Miembro encontrado")
+    @ApiResponse(responseCode = "404", description = "Miembro no encontrado")
+    public Miembro obtenerMiembroPorId(@PathVariable Long id) {
+        return miembroService.obtenerMiembroPorId(id);
+    }
+
     @PostMapping("/{id}/entrenamientos")
     @PreAuthorize("hasAnyRole('ADMIN', 'TRAINER', 'MEMBER')")
     @Operation(summary = "Registrar entrenamiento", description = "Publica una sesion de entrenamiento del miembro en el topic datos-entrenamiento")

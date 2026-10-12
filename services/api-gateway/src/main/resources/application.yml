@@ -1,0 +1,54 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: false
+      routes:
+        - id: ruta-miembros
+          uri: lb://miembro-service
+          predicates:
+            - Path=/api/gimnasio/miembros/**
+        - id: ruta-clases
+          uri: lb://clase-service
+          predicates:
+            - Path=/api/gimnasio/clases/**
+        - id: ruta-entrenadores
+          uri: lb://entrenador-service
+          predicates:
+            - Path=/api/gimnasio/entrenadores/**
+        - id: ruta-pagos
+          uri: lb://pago-service
+          predicates:
+            - Path=/api/gimnasio/pagos/**
+        - id: ruta-monitoreo
+          uri: lb://monitoreo-service
+          predicates:
+            - Path=/api/gimnasio/monitoreo/**
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/gimnasio}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8180/realms/gimnasio/protocol/openid-connect/certs}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://eureka-server:8761/eureka/}
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+  endpoint:
+    gateway:
+      enabled: true

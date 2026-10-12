@@ -55,6 +55,11 @@ public class MiembroService {
         return miembroRepository.findAll();
     }
 
+    public Miembro obtenerMiembroPorId(Long id) {
+        return miembroRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Miembro no encontrado: " + id));
+    }
+
     public DatosEntrenamiento registrarEntrenamiento(Long miembroId, RegistroEntrenamientoRequest request) {
         if (!miembroRepository.existsById(miembroId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Miembro " + miembroId + " no encontrado");
