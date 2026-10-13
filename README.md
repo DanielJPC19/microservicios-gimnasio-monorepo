@@ -17,6 +17,7 @@ Sistema distribuido de gestión de gimnasio construido con **Spring Boot 3.3.2**
 |---|---|
 | [`doc/01-ARQUITECTURA.md`](doc/01-ARQUITECTURA.md) | Visión general, diagrama de arquitectura, patrones de comunicación y modelo de dominio (DDD) |
 | [`doc/02-API-GATEWAY.md`](doc/02-API-GATEWAY.md) | **API Gateway con Spring Cloud Gateway**: enrutamiento YAML/Java, Eureka, LoadBalancer, agregación reactiva y guion de sustentación |
+| [`doc/PRESENTACION-API-GATEWAY.md`](doc/PRESENTACION-API-GATEWAY.md) | **Presentación y Sustentación Técnica del API Gateway (Entregable 2)**: documento formal ejecutivo de exposición y defensa |
 | [`doc/03-SEGURIDAD.md`](doc/03-SEGURIDAD.md) | Seguridad OAuth2/JWT con Keycloak, forwarding de tokens y matriz de permisos RBAC |
 | [`doc/04-API-REFERENCE.md`](doc/04-API-REFERENCE.md) | Referencia completa de todos los endpoints REST, DTOs, validaciones y respuestas |
 | [`doc/05-MENSAJERIA.md`](doc/05-MENSAJERIA.md) | RabbitMQ (Direct, Fanout Pub/Sub, DLQ) y Apache Kafka (SSE, Kafka Streams y recuperación por checkpoints) |
